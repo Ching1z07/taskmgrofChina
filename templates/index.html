@@ -15,8 +15,8 @@
     --accent: #7c6aff;
     --accent-glow: rgba(124,106,255,0.2);
     --accent2: #ff6a9e;
-    --text: #e8e8f0;
-    --muted: #4a4a62;
+    --text: #edeaf5;
+    --muted: #8888aa;
     --pending: #f5a623;
     --progress: #7c6aff;
     --done: #4cdf8a;
@@ -118,24 +118,7 @@
     letter-spacing: 0.03em;
   }
 
-  .btn-logout {
-    font-size: 0.68rem;
-    color: var(--muted);
-    text-decoration: none;
-    border: 1px solid var(--border);
-    padding: 7px 14px;
-    border-radius: 20px;
-    transition: all 0.2s;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.04em;
-    margin-left: 10px;
-  }
-  .btn-logout:hover {
-    border-color: var(--accent2);
-    color: var(--accent2);
-    box-shadow: 0 0 16px rgba(255,106,158,0.12);
-  }
-
+  /* ── Chat button ── */
   .btn-chat {
     position: relative;
     background: none; border: 1px solid var(--border);
@@ -152,31 +135,54 @@
     background: var(--accent2); border: 2px solid var(--bg);
   }
 
-  .btn-del-account {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 7px 10px;
-    margin-left: 10px;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
+  /* ── Settings button + dropdown ── */
+  .settings-wrap { position: relative; margin-left: 10px; }
+
+  .btn-settings {
+    background: none; border: 1px solid var(--border);
+    border-radius: 20px; color: var(--muted);
+    cursor: pointer; padding: 7px 10px;
+    transition: all 0.2s; display: flex; align-items: center;
   }
-  .btn-del-account:hover {
-    border-color: var(--high);
-    color: var(--high);
-    box-shadow: 0 0 14px rgba(255,78,106,0.12);
+  .btn-settings:hover { border-color: var(--border2); color: var(--text); }
+  .btn-settings.open { border-color: var(--accent); color: var(--accent); }
+  .btn-settings svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .settings-dropdown {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    min-width: 180px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    overflow: hidden;
+    animation: popIn 0.15s ease;
+    z-index: 50;
   }
-  .btn-del-account svg {
-    width: 13px; height: 13px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  .settings-dropdown.open { display: block; }
+
+  .settings-user {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.68rem; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
   }
+  .settings-user strong { color: var(--text); font-size: 0.78rem; }
+
+  .settings-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; font-size: 0.75rem; color: var(--text);
+    text-decoration: none; cursor: pointer;
+    background: none; border: none; width: 100%;
+    text-align: left; font-family: 'DM Mono', monospace;
+    transition: background 0.15s;
+  }
+  .settings-item:hover { background: var(--surface2); }
+  .settings-item svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .settings-item.danger { color: var(--high); }
+  .settings-item.danger:hover { background: rgba(255,78,106,0.07); }
+  .settings-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
   /* ── Delete account modal ── */
   .del-modal {
@@ -683,18 +689,34 @@
     </div>
     <div style="display:flex;align-items:center;gap:0">
       <div class="header-meta" id="headerMeta">yüklənir...</div>
+      <span class="admin-badge" id="adminBadge" style="display:none">admin</span>
       <a href="/chat" class="btn-chat" id="chatBtn" title="Chat">
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span class="chat-unread-dot" id="chatDot" style="display:none"></span>
       </a>
-      <span class="admin-badge" id="adminBadge" style="display:none">admin</span>
-      <button class="btn-del-account" onclick="openDelModal()" title="Hesabı sil">
-        <svg viewBox="0 0 24 24">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-        </svg>
-      </button>
-      <a href="/logout" class="btn-logout">Çıxış</a>
+      <div class="settings-wrap">
+        <button class="btn-settings" id="settingsBtn" onclick="toggleSettings()" title="Parametrlər">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+        <div class="settings-dropdown" id="settingsDropdown">
+          <div class="settings-user">
+            <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <strong id="settingsUsername">—</strong>
+          </div>
+          <a href="/logout" class="settings-item">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Çıxış
+          </a>
+          <div class="settings-sep"></div>
+          <button class="settings-item danger" onclick="closeSettings(); openDelModal()">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Hesabı sil
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -865,6 +887,7 @@ function openLightbox(src) {
 
 async function load() {
   currentUser = await api('/me');
+  document.getElementById('settingsUsername').textContent = currentUser.username;
   if (currentUser.is_admin) {
     document.getElementById('adminBadge').style.display = 'inline-block';
   }
@@ -1042,6 +1065,22 @@ function closeModal(e) {
   if (e.target.classList.contains('modal-overlay'))
     document.getElementById('editModal').style.display = 'none';
 }
+
+function toggleSettings() {
+  const btn = document.getElementById('settingsBtn');
+  const dd  = document.getElementById('settingsDropdown');
+  const open = dd.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+function closeSettings() {
+  document.getElementById('settingsDropdown').classList.remove('open');
+  document.getElementById('settingsBtn').classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.settings-wrap')) closeSettings();
+});
 
 function openDelModal() {
   document.getElementById('delAccountModal').style.display = 'flex';

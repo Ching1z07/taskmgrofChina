@@ -118,7 +118,7 @@ def login():
     if request.method == "POST":
         data = request.json
         user = User.query.filter_by(username=data["username"]).first()
-        if not user or not user.check_password(data["password"]):
+        if not user or user.deleted or not user.check_password(data["password"]):
             return jsonify({"error": "Yanlış istifadəçi adı və ya şifrə"}), 401
         login_user(user)
         return jsonify({"message": "Giriş uğurlu"})
@@ -128,9 +128,16 @@ def login():
 @login_required
 def delete_account():
     user = User.query.get(current_user.id)
+    deleted_count = User.query.filter_by(deleted=True).count()
+    anon_name = f"user.{31786 + deleted_count}"
     Task.query.filter_by(user_id=user.id).delete()
+    user.username      = anon_name
+    user.email         = None
+    user.password_hash = ""
+    user.reset_code    = None
+    user.reset_expires = None
+    user.deleted       = True
     logout_user()
-    db.session.delete(user)
     db.session.commit()
     return jsonify({"message": "Hesab silindi"})
 
@@ -296,7 +303,7 @@ def delete_category(cid):
 @app.route("/chat")
 @login_required
 def chat():
-    users = User.query.filter(User.id != current_user.id).all()
+    users = User.query.filter(User.id != current_user.id, User.deleted == False).all()
     return render_template("chat.html", users=users)
 
 @app.route("/chat/history/<int:peer_id>")

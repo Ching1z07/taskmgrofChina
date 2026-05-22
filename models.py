@@ -1,7 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from datetime import datetime
+from werkzeug.security import check_password_hash as _werkzeug_check
+import bcrypt
 
 db = SQLAlchemy()
 
@@ -14,13 +15,25 @@ class User(UserMixin, db.Model):
     is_admin       = db.Column(db.Boolean, default=False)
     reset_code     = db.Column(db.String(6), nullable=True)
     reset_expires  = db.Column(db.DateTime, nullable=True)
+    deleted        = db.Column(db.Boolean, default=False)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = bcrypt.hashpw(
+            password.encode(), bcrypt.gensalt(rounds=12)
+        ).decode()
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        h = self.password_hash
+        if h.startswith("$2b$") or h.startswith("$2a$"):
+            return bcrypt.checkpw(password.encode(), h.encode())
+        # köhnə werkzeug hash — yoxla və bcrypt-ə migrasiya et
+        if _werkzeug_check(h, password):
+            self.set_password(password)
+            from models import db
+            db.session.commit()
+            return True
+        return False
 
 class Category(db.Model):
     __tablename__ = "categories"
