@@ -9,12 +9,16 @@ import os, re, random, requests as http
 
 load_dotenv()
 
+DATA_DIR = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', os.path.join(os.path.dirname(__file__), 'instance'))
+UPLOAD_DIR = os.path.join(DATA_DIR, 'uploads')
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(DATA_DIR, 'tasks.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'sizin-gizli-açar-123'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-os.makedirs('static/uploads', exist_ok=True)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sizin-gizli-açar-123')
+app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
