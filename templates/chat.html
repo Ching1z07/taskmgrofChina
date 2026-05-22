@@ -280,6 +280,54 @@
   .date-sep::before, .date-sep::after {
     content: ''; flex: 1; height: 1px; background: var(--border);
   }
+
+  /* ── Back button (mobile only) ── */
+  .back-btn {
+    display: none;
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); padding: 4px 6px 4px 0;
+    align-items: center; justify-content: center;
+    transition: color 0.15s; flex-shrink: 0;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .topbar { padding: 12px 16px; }
+    .topbar-title { display: none; }
+    .logo { font-size: 1rem; }
+    .nav-link { font-size: 0.62rem; padding: 5px 10px; }
+
+    .layout { display: block; height: 100%; position: relative; }
+
+    .users-panel {
+      position: absolute; inset: 0;
+      z-index: 2; display: flex;
+      transition: transform 0.28s ease;
+    }
+
+    .chat-area {
+      position: absolute; inset: 0;
+      z-index: 1; display: flex;
+      transform: translateX(100%);
+      transition: transform 0.28s ease;
+    }
+
+    .layout.chat-open .users-panel { transform: translateX(-100%); }
+    .layout.chat-open .chat-area { transform: translateX(0); }
+
+    .back-btn { display: flex; }
+
+    .msg-bubble { max-width: 82%; }
+    .messages { padding: 12px 14px; }
+    .input-bar { padding: 10px 12px; }
+    .users-list { padding: 4px; }
+  }
+
+  @media (max-width: 400px) {
+    .topbar-links .nav-link:first-child { display: none; }
+    .user-name { font-size: 0.75rem; }
+  }
 </style>
 </head>
 <body>
@@ -375,9 +423,16 @@ async function openChat(uid, uname) {
   const badge = document.getElementById(`unread-${uid}`);
   badge.textContent = ''; badge.classList.remove("visible");
 
+  if (window.innerWidth <= 700) {
+    document.querySelector('.layout').classList.add('chat-open');
+  }
+
   const area = document.getElementById("chatArea");
   area.innerHTML = `
     <div class="chat-header">
+      <button class="back-btn" onclick="closeChat()">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
       <div class="chat-peer-avatar">${uname[0].toUpperCase()}</div>
       <div>
         <div class="chat-peer-name">${uname}</div>
@@ -469,6 +524,12 @@ function showTyping(show) {
 function autoResize(el) {
   el.style.height = "auto";
   el.style.height = Math.min(el.scrollHeight, 120) + "px";
+}
+
+function closeChat() {
+  document.querySelector('.layout').classList.remove('chat-open');
+  peerId = null; peerName = null;
+  document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
 }
 
 function escHtml(s) {

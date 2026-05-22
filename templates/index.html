@@ -674,9 +674,51 @@
   .file-upload-name { font-size: 0.67rem; color: var(--done); word-break: break-all; }
   #tImage { display: none; }
 
-  @media (max-width: 700px) {
-    .main { grid-template-columns: 1fr; }
-    .stats { grid-template-columns: repeat(2, 1fr); }
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 240px 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .app { padding: 24px 16px; }
+
+    header { flex-wrap: wrap; gap: 10px; margin-bottom: 24px; padding-bottom: 16px; }
+    .logo { font-size: 1.5rem; }
+    .header-sub { font-size: 0.58rem; }
+    .header-meta { display: none; }
+
+    .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 18px; }
+
+    .main { display: flex; flex-direction: column; gap: 16px; }
+    .task-area { order: 1; }
+    .sidebar { order: 2; }
+
+    .modal { padding: 20px 18px; }
+    .del-modal { padding: 20px 18px; }
+
+    .toast { bottom: 14px; right: 14px; left: 14px; max-width: none; text-align: center; }
+  }
+
+  @media (max-width: 480px) {
+    .app { padding: 14px 12px; }
+
+    header { gap: 8px; margin-bottom: 18px; }
+    header > div:last-child { gap: 6px !important; }
+    .logo { font-size: 1.3rem; }
+    .admin-badge { font-size: 0.55rem; padding: 2px 7px; }
+
+    .stats { gap: 6px; }
+    .stat { padding: 12px 10px; }
+    .stat-num { font-size: 1.55rem; }
+    .stat-label { font-size: 0.57rem; }
+
+    .filters { padding: 8px; gap: 4px; }
+    .filter-btn { font-size: 0.62rem; padding: 4px 9px; }
+
+    .task-card { padding: 11px 13px; }
+    .task-name { font-size: 0.84rem; }
+
+    .del-confirm-row { flex-direction: column; }
   }
 </style>
 </head>

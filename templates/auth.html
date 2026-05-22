@@ -2,6 +2,7 @@
 <html lang="az">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% if mode == "login" %}Giriş{% elif mode == "register" %}Qeydiyyat{% else %}Şifrəni yenilə{% endif %} — taskmgr</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
@@ -307,6 +308,13 @@
     display: none;
   }
   .code-hint.visible { display: block; }
+
+  @media (max-width: 480px) {
+    body { align-items: flex-start; padding: 24px 12px; }
+    .box { border-radius: 14px; width: 100%; }
+    .box-inner { padding: 28px 20px 24px; }
+    .logo { font-size: 1.6rem; }
+  }
 </style>
 </head>
 <body>
