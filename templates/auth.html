@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<title>{% if mode == "login" %}Giriş{% elif mode == "register" %}Qeydiyyat{% else %}Şifrəni yenilə{% endif %} — taskmgr</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080e;
+    --surface: #0f0f1a;
+    --surface2: #141422;
+    --border: #1a1a2e;
+    --border2: #252538;
+    --accent: #7c6aff;
+    --accent2: #ff6a9e;
+    --accent-glow: rgba(124,106,255,0.2);
+    --text: #e8e8f0;
+    --muted: #4a4a62;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(26,26,46,0.6) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26,26,46,0.6) 1px, transparent 1px);
+    background-size: 44px 44px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Radial glow centred behind the card */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    width: 640px; height: 640px;
+    background: radial-gradient(circle, rgba(124,106,255,0.09) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Card ── */
+  .box {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    width: 380px;
+    max-width: 92vw;
+    overflow: hidden;
+    box-shadow:
+      0 40px 100px rgba(0,0,0,0.6),
+      0 0 0 1px rgba(124,106,255,0.07),
+      0 0 60px rgba(124,106,255,0.04);
+    animation: boxIn 0.45s cubic-bezier(0.34, 1.1, 0.64, 1);
+  }
+
+  @keyframes boxIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
+  }
+
+  /* gradient top bar */
+  .box::before {
+    content: '';
+    display: block;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent) 40%, var(--accent2) 70%, transparent 100%);
+    opacity: 0.7;
+  }
+
+  .box-inner { padding: 40px 36px 36px; }
+
+  /* ── Logo ── */
+  .logo-wrap { text-align: center; margin-bottom: 8px; }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, var(--text) 0%, rgba(232,232,240,0.55) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: inline-block;
+  }
+
+  .logo span {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo-sub {
+    font-size: 0.63rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-top: 6px;
+    margin-bottom: 32px;
+  }
+
+  /* ── Error ── */
+  .error {
+    font-size: 0.71rem;
+    margin-bottom: 14px;
+    display: none;
+    background: rgba(255,78,106,0.07);
+    border: 1px solid rgba(255,78,106,0.22);
+    border-radius: 7px;
+    padding: 9px 12px;
+    color: #ff6b82;
+    animation: errIn 0.2s ease;
+  }
+
+  @keyframes errIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Fields ── */
+  .field { margin-bottom: 10px; }
+
+  .field-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    padding: 10px 13px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  /* ── Password toggle ── */
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 42px; }
+
+  .pw-toggle {
+    position: absolute;
+    right: 1px; top: 1px; bottom: 1px;
+    width: 38px;
+    background: none;
+    border: none;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .pw-toggle:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+  .pw-toggle svg {
+    width: 15px; height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ── Password rules ── */
+  .pw-rules {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .pw-rules.visible { display: flex; }
+
+  .rule {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.67rem;
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+  .rule.ok { color: var(--done); }
+
+  .rule-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .rule.ok .rule-dot { background: var(--done); transform: scale(1.3); }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border) 30%, var(--border) 70%, transparent);
+    margin: 20px 0;
+  }
+
+  /* ── Button ── */
+  .btn {
+    background: linear-gradient(135deg, #7c6aff 0%, #9b5de5 100%);
+    border: none;
+    border-radius: 7px;
+    color: #fff;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px;
+    width: 100%;
+    transition: opacity 0.2s, box-shadow 0.2s, transform 0.15s;
+    margin-top: 4px;
+  }
+
+  .btn:hover {
+    opacity: 0.88;
+    box-shadow: 0 4px 24px rgba(124,106,255,0.45);
+    transform: translateY(-1px);
+  }
+
+  .btn:active { transform: scale(0.97); box-shadow: none; }
+
+  /* ── Success message ── */
+  .success {
+    font-size: 0.71rem;
+    margin-bottom: 14px;
+    display: none;
+    background: rgba(76,223,138,0.07);
+    border: 1px solid rgba(76,223,138,0.22);
+    border-radius: 7px;
+    padding: 9px 12px;
+    color: var(--done);
+    animation: errIn 0.2s ease;
+  }
+
+  /* ── Switch link ── */
+  .switch {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    line-height: 2;
+  }
+
+  .switch a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 0.15s;
+    display: inline-block;
+  }
+
+  .switch a:hover { color: var(--accent2); }
+
+  .forgot-link {
+    color: var(--muted) !important;
+    font-size: 0.65rem;
+    border-bottom: 1px dashed var(--border);
+  }
+  .forgot-link:hover { color: var(--accent) !important; border-color: var(--accent); }
+
+  .code-hint {
+    font-size: 0.67rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+    display: none;
+  }
+  .code-hint.visible { display: block; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="box-inner">
+    <div class="logo-wrap">
+      <div class="logo">task<span>mgr</span></div>
+      <div class="logo-sub">
+        {% if mode == "login" %}xoş gəldiniz{% elif mode == "register" %}yeni hesab{% else %}şifrəni yenilə{% endif %}
+      </div>
+    </div>
+
+    <div class="error" id="err"></div>
+    <div class="success" id="suc"></div>
+
+    <div class="field">
+      <label class="field-label" for="username">İstifadəçi adı</label>
+      <input id="username" placeholder="ad yazın…" autocomplete="username" />
+    </div>
+
+    {% if mode == "register" %}
+    <div class="field">
+      <label class="field-label" for="email">Email</label>
+      <input id="email" type="email" placeholder="example@mail.com" autocomplete="email" />
+    </div>
+    {% endif %}
+
+    {% if mode != "forgot" %}
+    <div class="field">
+      <label class="field-label" for="password">
+        Şifrə
+      </label>
+      <div class="pw-wrap">
+        <input id="password" type="password" placeholder="••••••••"
+          autocomplete="{% if mode == 'login' %}current-password{% else %}new-password{% endif %}"
+          oninput="checkRules()" />
+        <button class="pw-toggle" type="button" onclick="togglePw('password','eyeIcon')" id="pwBtn" title="Şifrəni göstər">
+          <svg id="eyeIcon" viewBox="0 0 24 24">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      {% if mode == "register" %}
+      <div class="pw-rules" id="pwRules">
+        <div class="rule" id="ruleLen"><span class="rule-dot"></span>Ən az 8 simvol</div>
+        <div class="rule" id="ruleNum"><span class="rule-dot"></span>Ən az 1 rəqəm</div>
+        <div class="rule" id="ruleUpper"><span class="rule-dot"></span>Ən az 1 böyük hərf</div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if mode == "register" %}
+    <div class="field">
+      <label class="field-label" for="confirm">Şifrəni təsdiqlə</label>
+      <div class="pw-wrap">
+        <input id="confirm" type="password" placeholder="••••••••" autocomplete="new-password" />
+        <button class="pw-toggle" type="button" onclick="togglePw('confirm','eyeIcon2')" title="Şifrəni göstər">
+          <svg id="eyeIcon2" viewBox="0 0 24 24">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── Forgot password 2-step ── #}
+    {% if mode == "forgot" %}
+
+    {# Step 1: username #}
+    <div id="fStep1">
+      <div class="divider"></div>
+      <button class="btn" onclick="forgotSend()">Kodu göndər</button>
+    </div>
+
+    {# Step 2: code + new password #}
+    <div id="fStep2" style="display:none">
+      <div class="field" style="margin-top:2px">
+        <label class="field-label">Emailə gələn 6-rəqəmli kod</label>
+        <div class="code-hint" id="codeHint"></div>
+        <input id="resetCode" placeholder="000000" maxlength="6"
+               style="letter-spacing:0.25em;font-size:1.1rem;text-align:center"
+               oninput="this.value=this.value.replace(/\D/g,'')" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="password">Yeni şifrə</label>
+        <div class="pw-wrap">
+          <input id="password" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRules()" />
+          <button class="pw-toggle" type="button" onclick="togglePw('password','eyeIcon')" title="Şifrəni göstər">
+            <svg id="eyeIcon" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        <div class="pw-rules" id="pwRules">
+          <div class="rule" id="ruleLen"><span class="rule-dot"></span>Ən az 8 simvol</div>
+          <div class="rule" id="ruleNum"><span class="rule-dot"></span>Ən az 1 rəqəm</div>
+          <div class="rule" id="ruleUpper"><span class="rule-dot"></span>Ən az 1 böyük hərf</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="confirm">Şifrəni təsdiqlə</label>
+        <div class="pw-wrap">
+          <input id="confirm" type="password" placeholder="••••••••" autocomplete="new-password" />
+          <button class="pw-toggle" type="button" onclick="togglePw('confirm','eyeIcon2')" title="Şifrəni göstər">
+            <svg id="eyeIcon2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn" onclick="forgotReset()">Şifrəni yenilə</button>
+    </div>
+    {% endif %}
+
+    {% if mode != "forgot" %}
+    <div class="divider"></div>
+    <button class="btn" onclick="submit()">
+      {% if mode == "login" %}Daxil ol{% else %}Qeydiyyatdan keç{% endif %}
+    </button>
+    {% endif %}
+
+    <div class="switch">
+      {% if mode == "login" %}
+        Hesabınız yoxdur? <a href="/register">Qeydiyyat</a><br>
+        <a href="/forgot-password" class="forgot-link">Parolu unutmusunuz?</a>
+      {% elif mode == "register" %}
+        Hesabınız var? <a href="/login">Daxil ol</a>
+      {% else %}
+        Yadınıza düşdü? <a href="/login">Daxil ol</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  const MODE = "{{ mode }}";
+
+  function checkRules() {
+    const val = document.getElementById('password').value;
+    const rules = document.getElementById('pwRules');
+    if (!rules) return;
+    rules.classList.add('visible');
+    toggle('ruleLen',   val.length >= 8);
+    toggle('ruleNum',   /\d/.test(val));
+    toggle('ruleUpper', /[A-Z]/.test(val));
+  }
+
+  function toggle(id, ok) {
+    document.getElementById(id).classList.toggle('ok', ok);
+  }
+
+  function validPassword(val) {
+    return val.length >= 8 && /\d/.test(val) && /[A-Z]/.test(val);
+  }
+
+  function togglePw(inputId, iconId) {
+    const inp = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    const showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    icon.innerHTML = showing
+      ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+      : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>'
+        + '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>'
+        + '<line x1="1" y1="1" x2="23" y2="23"/>';
+  }
+
+  function validEmail(v) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+
+  async function submit() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmEl = document.getElementById('confirm');
+    const emailEl = document.getElementById('email');
+    const errEl = document.getElementById('err');
+    const sucEl = document.getElementById('suc');
+    errEl.style.display = 'none';
+    sucEl.style.display = 'none';
+
+    if (!username || !password) {
+      errEl.textContent = '❗ Bütün sahələri doldurun';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (MODE === 'register') {
+      const email = emailEl ? emailEl.value.trim() : '';
+      if (!email || !validEmail(email)) {
+        errEl.textContent = '❗ Düzgün email daxil edin';
+        errEl.style.display = 'block';
+        return;
+      }
+    }
+    if (MODE !== 'login' && !validPassword(password)) {
+      errEl.textContent = '❗ Şifrə tələblərə uyğun deyil';
+      errEl.style.display = 'block';
+      document.getElementById('pwRules').classList.add('visible');
+      return;
+    }
+    if (MODE !== 'login' && confirmEl && password !== confirmEl.value) {
+      errEl.textContent = '❗ Şifrələr uyğun gəlmir';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const body = { username, password };
+    if (MODE === 'register' && emailEl) body.email = emailEl.value.trim().toLowerCase();
+
+    const endpoint = MODE === 'forgot' ? '/forgot-password' : `/${MODE}`;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error;
+      errEl.style.display = 'block';
+      return;
+    }
+    if (MODE === 'forgot') {
+      sucEl.textContent = '✓ Şifrə yeniləndi — daxil ola bilərsiniz';
+      sucEl.style.display = 'block';
+      setTimeout(() => window.location.href = '/login', 1800);
+      return;
+    }
+    window.location.href = '/';
+  }
+
+  let forgotUsername = '';
+
+  async function forgotSend() {
+    const username = document.getElementById('username').value.trim();
+    const errEl = document.getElementById('err');
+    errEl.style.display = 'none';
+    if (!username) { errEl.textContent = '❗ İstifadəçi adını daxil edin'; errEl.style.display = 'block'; return; }
+    const res = await fetch('/forgot-password', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'send', username })
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    forgotUsername = username;
+    document.getElementById('fStep1').style.display = 'none';
+    document.getElementById('username').closest('.field').style.display = 'none';
+    document.getElementById('fStep2').style.display = 'block';
+    const hint = document.getElementById('codeHint');
+    hint.textContent = `✉ Kod ${data.masked_email} ünvanına göndərildi`;
+    hint.classList.add('visible');
+  }
+
+  async function forgotReset() {
+    const code = document.getElementById('resetCode').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm').value;
+    const errEl = document.getElementById('err');
+    const sucEl = document.getElementById('suc');
+    errEl.style.display = 'none';
+    if (!code || code.length !== 6) { errEl.textContent = '❗ 6-rəqəmli kodu daxil edin'; errEl.style.display = 'block'; return; }
+    if (!validPassword(password)) {
+      errEl.textContent = '❗ Şifrə tələblərə uyğun deyil';
+      errEl.style.display = 'block';
+      document.getElementById('pwRules').classList.add('visible');
+      return;
+    }
+    if (password !== confirm) { errEl.textContent = '❗ Şifrələr uyğun gəlmir'; errEl.style.display = 'block'; return; }
+    const res = await fetch('/forgot-password', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'reset', username: forgotUsername, code, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    sucEl.textContent = '✓ Şifrə yeniləndi — daxil ola bilərsiniz';
+    sucEl.style.display = 'block';
+    setTimeout(() => window.location.href = '/login', 1800);
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+</script>
+</body>
+</html>

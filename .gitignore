@@ -1,0 +1,20 @@
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+
+# Database
+instance/
+*.db
+*.sqlite3
+
+# Uploads
+static/uploads/
+
+# OS
+.DS_Store
