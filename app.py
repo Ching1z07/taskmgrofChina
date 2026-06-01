@@ -36,8 +36,9 @@ def set_security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.socket.io; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: blob:; "
         "connect-src 'self' ws: wss:"
     )
@@ -55,9 +56,9 @@ def load_user(user_id):
 with app.app_context():
     User.__table__.create(db.engine, checkfirst=True)
     db.create_all()
-    admin_username = os.environ['ADMIN_USERNAME']
-    admin_password = os.environ['ADMIN_PASSWORD']
-    if not User.query.filter_by(username=admin_username).first():
+    admin_username = os.environ.get('ADMIN_USERNAME')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if admin_username and admin_password and not User.query.filter_by(username=admin_username).first():
         admin = User(username=admin_username, is_admin=True)
         admin.set_password(admin_password)
         db.session.add(admin)
