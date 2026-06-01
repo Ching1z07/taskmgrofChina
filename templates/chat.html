@@ -439,7 +439,7 @@
     <div class="users-head">İstifadəçilər</div>
     <div class="users-list" id="usersList">
       {% for u in users %}
-      <div class="user-item" id="ui-{{ u.id }}" onclick="openChat({{ u.id }}, {{ u.username | tojson }})">
+      <div class="user-item" id="ui-{{ u.id }}" onclick='openChat({{ u.id }}, {{ u.username | tojson }})'>
         <div class="user-avatar">
           {{ u.username[0].upper() }}
           <div class="online-dot" id="dot-{{ u.id }}"></div>
