@@ -5,7 +5,9 @@ from werkzeug.utils import secure_filename
 from models import db, Task, Category, User, Message
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import os, re, random, requests as http
+import os, re, secrets, requests as http
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
@@ -17,10 +19,29 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(DATA_DIR, 'tasks.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sizin-gizli-açar-123')
+app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 db.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins=os.environ.get('CORS_ORIGINS'))
+
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self' ws: wss:"
+    )
+    return response
 
 online_users = {}  # {user_id: username}
 
@@ -34,9 +55,11 @@ def load_user(user_id):
 with app.app_context():
     User.__table__.create(db.engine, checkfirst=True)
     db.create_all()
-    if not User.query.filter_by(username="Ching1z_7").first():
-        admin = User(username="Ching1z_7", is_admin=True)
-        admin.set_password("Domino")
+    admin_username = os.environ['ADMIN_USERNAME']
+    admin_password = os.environ['ADMIN_PASSWORD']
+    if not User.query.filter_by(username=admin_username).first():
+        admin = User(username=admin_username, is_admin=True)
+        admin.set_password(admin_password)
         db.session.add(admin)
         db.session.commit()
 
@@ -97,20 +120,26 @@ def validate_email(email):
     return re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email or '')
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def register():
     if request.method == "POST":
         data = request.json
+        username = (data.get("username") or "").strip()
         email = (data.get("email") or "").strip().lower()
+        if not username or len(username) > 30:
+            return jsonify({"error": "İstifadəçi adı 1-30 simvol arasında olmalıdır"}), 400
+        if len(email) > 120:
+            return jsonify({"error": "Email çox uzundur"}), 400
         if not validate_email(email):
             return jsonify({"error": "Düzgün email daxil edin"}), 400
         err = validate_password(data.get("password", ""))
         if err:
             return jsonify({"error": err}), 400
-        if User.query.filter_by(username=data["username"]).first():
+        if User.query.filter_by(username=username).first():
             return jsonify({"error": "Bu istifadəçi adı mövcuddur"}), 400
         if User.query.filter_by(email=email).first():
             return jsonify({"error": "Bu email artıq qeydiyyatdan keçib"}), 400
-        user = User(username=data["username"], email=email)
+        user = User(username=username, email=email)
         user.set_password(data["password"])
         db.session.add(user)
         db.session.commit()
@@ -118,6 +147,7 @@ def register():
     return render_template("auth.html", mode="register")
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     if request.method == "POST":
         data = request.json
@@ -146,6 +176,7 @@ def delete_account():
     return jsonify({"message": "Hesab silindi"})
 
 @app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def forgot_password():
     if request.method == "POST":
         data = request.json
@@ -153,11 +184,10 @@ def forgot_password():
 
         if action == "send":
             user = User.query.filter_by(username=data.get("username", "")).first()
-            if not user:
-                return jsonify({"error": "Bu istifadəçi adı tapılmadı"}), 404
-            if not user.email:
-                return jsonify({"error": "Bu hesaba email bağlı deyil"}), 400
-            code = str(random.randint(100000, 999999))
+            if not user or not user.email:
+                # Generic response to prevent username/email enumeration
+                return jsonify({"message": "Hesab mövcuddursa, kodu emailə göndərdik"}), 200
+            code = str(secrets.randbelow(900000) + 100000)
             user.reset_code = code
             user.reset_expires = datetime.utcnow() + timedelta(minutes=10)
             db.session.commit()
@@ -228,6 +258,9 @@ def create_task():
     if 'image' in request.files:
         file = request.files['image']
         if file and file.filename:
+            ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+            if ext not in ALLOWED_EXTENSIONS:
+                return jsonify({"error": "Yalnız şəkil fayllarına icazə var (png, jpg, jpeg, gif, webp)"}), 400
             filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file.filename}")
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             image_path = filename
@@ -355,7 +388,7 @@ def on_private_message(data):
         return
     content = (data.get("content") or "").strip()
     receiver_id = data.get("receiver_id")
-    if not content or not receiver_id:
+    if not content or not receiver_id or len(content) > 2000:
         return
     msg = Message(sender_id=current_user.id, receiver_id=receiver_id, content=content)
     db.session.add(msg)
