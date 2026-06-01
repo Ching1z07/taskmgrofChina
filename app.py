@@ -217,7 +217,7 @@ def forgot_password():
         return jsonify({"error": "Yanlış sorğu"}), 400
     return render_template("auth.html", mode="forgot")
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()
@@ -321,7 +321,13 @@ def get_categories():
 @login_required
 def create_category():
     data = request.json
-    cat = Category(name=data["name"], color=data.get("color", "#3498db"))
+    name = (data.get("name") or "").strip()
+    if not name or len(name) > 80:
+        return jsonify({"error": "Kateqoriya adı 1-80 simvol arasında olmalıdır"}), 400
+    color = data.get("color", "#3498db")
+    if not re.match(r'^#[0-9a-fA-F]{6}$', color):
+        color = "#3498db"
+    cat = Category(name=name, color=color)
     db.session.add(cat)
     db.session.commit()
     return jsonify({"id": cat.id, "name": cat.name, "color": cat.color}), 201

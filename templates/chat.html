@@ -338,7 +338,9 @@
   </div>
   <div class="topbar-links">
     <a href="/" class="nav-link">← Tasklar</a>
-    <a href="/logout" class="nav-link">Çıxış</a>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="nav-link" style="background:none;cursor:pointer;font-family:inherit">Çıxış</button>
+    </form>
   </div>
 </div>
 
@@ -348,7 +350,7 @@
     <div class="users-head">İstifadəçilər</div>
     <div class="users-list" id="usersList">
       {% for u in users %}
-      <div class="user-item" id="ui-{{ u.id }}" onclick="openChat({{ u.id }}, '{{ u.username }}')">
+      <div class="user-item" id="ui-{{ u.id }}" onclick="openChat({{ u.id }}, {{ u.username | tojson }})">
         <div class="user-avatar">
           {{ u.username[0].upper() }}
           <div class="online-dot" id="dot-{{ u.id }}"></div>
@@ -433,20 +435,20 @@ async function openChat(uid, uname) {
       <button class="back-btn" onclick="closeChat()">
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
-      <div class="chat-peer-avatar">${uname[0].toUpperCase()}</div>
+      <div class="chat-peer-avatar">${escHtml(uname[0].toUpperCase())}</div>
       <div>
-        <div class="chat-peer-name">${uname}</div>
+        <div class="chat-peer-name">${escHtml(uname)}</div>
         <div class="chat-peer-sub" id="peerSub"></div>
       </div>
     </div>
     <div class="messages" id="msgList"></div>
     <div class="typing-indicator" id="typingEl">
       <div class="typing-dots"><span></span><span></span><span></span></div>
-      <span>${uname} yazır...</span>
+      <span>${escHtml(uname)} yazır...</span>
     </div>
     <div class="input-bar" id="inputBar">
       <textarea class="msg-input" id="msgInput" rows="1"
-        placeholder="${uname} ilə söhbət..."
+        placeholder="${escHtml(uname)} ilə söhbət..."
         oninput="autoResize(this); handleTyping()"
         onkeydown="onKey(event)"></textarea>
       <button class="send-btn" onclick="sendMsg()">
