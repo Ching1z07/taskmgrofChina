@@ -748,10 +748,12 @@
             <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <strong id="settingsUsername">—</strong>
           </div>
-          <a href="/logout" class="settings-item">
-            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Çıxış
-          </a>
+          <form method="POST" action="/logout" style="margin:0">
+            <button type="submit" class="settings-item">
+              <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Çıxış
+            </button>
+          </form>
           <div class="settings-sep"></div>
           <button class="settings-item danger" onclick="closeSettings(); openDelModal()">
             <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -893,6 +895,10 @@
 </div>
 
 <script>
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 const API = '';
 let allTasks = [];
 let allCats = [];
@@ -982,14 +988,14 @@ function renderTasks() {
   el.innerHTML = allTasks.map(t => `
     <div class="task-card" data-status="${t.status}">
       <div>
-        <div class="task-name">${t.name}</div>
-        ${t.image_url ? `<img class="task-img" src="${t.image_url}" onclick="openLightbox('${t.image_url}')" />` : ''}
-        ${t.description ? `<div class="task-desc">${t.description}</div>` : ''}
+        <div class="task-name">${escHtml(t.name)}</div>
+        ${t.image_url ? `<img class="task-img" src="${escHtml(t.image_url)}" onclick="openLightbox('${escHtml(t.image_url)}')" />` : ''}
+        ${t.description ? `<div class="task-desc">${escHtml(t.description)}</div>` : ''}
         <div class="task-meta">
           <span class="badge ${statusBadge[t.status]}">${statusLabel[t.status]}</span>
           <span class="badge ${priBadge[t.priority]}">${priLabel[t.priority]}</span>
-          ${t.category ? `<span class="cat-badge" style="background:${t.category.color}18;color:${t.category.color};border-color:${t.category.color}33">${t.category.name}</span>` : ''}
-          ${currentUser && currentUser.is_admin && t.owner ? `<span class="owner-badge">@${t.owner}</span>` : ''}
+          ${t.category ? `<span class="cat-badge" style="background:${escHtml(t.category.color)}18;color:${escHtml(t.category.color)};border-color:${escHtml(t.category.color)}33">${escHtml(t.category.name)}</span>` : ''}
+          ${currentUser && currentUser.is_admin && t.owner ? `<span class="owner-badge">@${escHtml(t.owner)}</span>` : ''}
         </div>
       </div>
       <div class="task-actions">
@@ -1008,8 +1014,8 @@ function renderCats() {
   }
   el.innerHTML = allCats.map(c => `
     <div class="cat-item ${currentCatFilter == c.id ? 'active' : ''}" onclick="filterByCat(${c.id})">
-      <span class="cat-dot" style="background:${c.color}"></span>
-      <span class="cat-name">${c.name}</span>
+      <span class="cat-dot" style="background:${escHtml(c.color)}"></span>
+      <span class="cat-name">${escHtml(c.name)}</span>
       <span class="cat-count">${c.task_count}</span>
       <button class="cat-del" onclick="event.stopPropagation();deleteCat(${c.id})">✕</button>
     </div>
@@ -1018,7 +1024,7 @@ function renderCats() {
 
 function populateCatSelects() {
   const opts = `<option value="">Kateqoriyasız</option>` + allCats.map(c =>
-    `<option value="${c.id}">${c.name}</option>`).join('');
+    `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
   document.getElementById('tCategory').innerHTML = opts;
   document.getElementById('eCategory').innerHTML = opts;
 }

@@ -23,7 +23,7 @@ app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 db.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins=os.environ.get('CORS_ORIGINS'))
+socketio = SocketIO(app, cors_allowed_origins=os.environ.get('CORS_ORIGINS') or None)
 
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
@@ -51,7 +51,7 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 with app.app_context():
     User.__table__.create(db.engine, checkfirst=True)
@@ -162,7 +162,7 @@ def login():
 @app.route("/delete-account", methods=["DELETE"])
 @login_required
 def delete_account():
-    user = User.query.get(current_user.id)
+    user = db.session.get(User, current_user.id)
     deleted_count = User.query.filter_by(deleted=True).count()
     anon_name = f"user.{31786 + deleted_count}"
     Task.query.filter_by(user_id=user.id).delete()
@@ -282,7 +282,7 @@ def create_task():
 @app.route("/tasks/<int:tid>", methods=["PUT"])
 @login_required
 def update_task(tid):
-    task = Task.query.get(tid)
+    task = db.session.get(Task, tid)
     if not task:
         return jsonify({"error": "Tapılmadı"}), 404
     if not current_user.is_admin and task.user_id != current_user.id:
@@ -298,7 +298,7 @@ def update_task(tid):
 @app.route("/tasks/<int:tid>", methods=["DELETE"])
 @login_required
 def delete_task(tid):
-    task = Task.query.get(tid)
+    task = db.session.get(Task, tid)
     if not task:
         return jsonify({"error": "Tapılmadı"}), 404
     if not current_user.is_admin and task.user_id != current_user.id:
@@ -336,7 +336,7 @@ def create_category():
 @app.route("/categories/<int:cid>", methods=["DELETE"])
 @login_required
 def delete_category(cid):
-    cat = Category.query.get(cid)
+    cat = db.session.get(Category, cid)
     if not cat:
         return jsonify({"error": "Tapılmadı"}), 404
     db.session.delete(cat)
