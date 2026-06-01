@@ -328,6 +328,82 @@
     .topbar-links .nav-link:first-child { display: none; }
     .user-name { font-size: 0.75rem; }
   }
+
+  /* ── Call UI ─────────────────────────────────────────────── */
+  .active-call-bar {
+    position: relative; z-index: 2;
+    background: rgba(76,223,138,0.06);
+    border-bottom: 1px solid rgba(76,223,138,0.18);
+    padding: 8px 20px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.72rem; color: var(--done); flex-shrink: 0;
+  }
+  .call-live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--done); flex-shrink: 0;
+    animation: callBlink 1.4s ease-in-out infinite;
+  }
+  @keyframes callBlink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+  .call-bar-name { color: var(--text); }
+  .call-bar-dur { margin-left: auto; font-family:'DM Mono',monospace; color: var(--muted); }
+  .call-bar-btn {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid rgba(124,106,255,0.3);
+    background: rgba(124,106,255,0.08);
+    cursor: pointer; display:flex; align-items:center; justify-content:center;
+    color: var(--text); transition: all 0.15s;
+  }
+  .call-bar-btn:hover { background: rgba(124,106,255,0.2); }
+  .call-bar-btn.muted-bar { background: rgba(255,78,106,0.15); border-color:rgba(255,78,106,0.3); color: var(--high); }
+  .call-bar-btn.end-bar { background: rgba(255,78,106,0.1); border-color:rgba(255,78,106,0.3); color: var(--high); }
+  .call-bar-btn.end-bar:hover { background: rgba(255,78,106,0.25); }
+  .call-bar-btn svg { width:12px; height:12px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
+  .call-header-btn {
+    margin-left: auto;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: none; border: 1px solid var(--border);
+    cursor: pointer; color: var(--muted);
+    display:flex; align-items:center; justify-content:center;
+    transition: all 0.2s; flex-shrink: 0;
+  }
+  .call-header-btn:hover { color: var(--done); border-color: var(--done); background: rgba(76,223,138,0.08); }
+  .call-header-btn svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
+  .call-overlay {
+    position: fixed; inset: 0;
+    background: rgba(8,8,14,0.94);
+    backdrop-filter: blur(14px);
+    z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 22px;
+  }
+  .call-ov-avatar {
+    width: 88px; height: 88px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Syne',sans-serif; font-weight:800;
+    font-size:2.2rem; color:#fff;
+    animation: callPulse 2s ease-in-out infinite;
+  }
+  @keyframes callPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(124,106,255,0.45), 0 0 0 0 rgba(124,106,255,0.2); }
+    60%      { box-shadow: 0 0 0 18px rgba(124,106,255,0), 0 0 0 36px rgba(124,106,255,0); }
+  }
+  .call-ov-name { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; color:var(--text); }
+  .call-ov-status { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.14em; }
+  .call-ov-actions { display:flex; gap:24px; margin-top:8px; }
+  .call-ov-btn {
+    width:60px; height:60px; border-radius:50%;
+    border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .call-ov-btn:hover { transform: scale(1.08); }
+  .call-ov-btn:active { transform: scale(0.94); }
+  .call-ov-btn.accept { background:#4cdf8a; box-shadow:0 4px 20px rgba(76,223,138,0.5); }
+  .call-ov-btn.reject, .call-ov-btn.cancel { background:#ff4e6a; box-shadow:0 4px 20px rgba(255,78,106,0.4); }
+  .call-ov-btn svg { width:26px; height:26px; stroke:#fff; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
 </style>
 </head>
 <body>
@@ -342,6 +418,19 @@
       <button type="submit" class="nav-link" style="background:none;cursor:pointer;font-family:inherit">Çıxış</button>
     </form>
   </div>
+</div>
+
+<div class="active-call-bar" id="activeCallBar" style="display:none">
+  <div class="call-live-dot"></div>
+  <span>Zəng:</span>
+  <span class="call-bar-name" id="activeCallName"></span>
+  <span class="call-bar-dur" id="callDuration">00:00</span>
+  <button class="call-bar-btn" id="muteBtn" onclick="toggleMute()" title="Səsi kəs">
+    <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+  </button>
+  <button class="call-bar-btn end-bar" onclick="endCall()" title="Zəngi bitir">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
 </div>
 
 <div class="layout">
@@ -440,6 +529,9 @@ async function openChat(uid, uname) {
         <div class="chat-peer-name">${escHtml(uname)}</div>
         <div class="chat-peer-sub" id="peerSub"></div>
       </div>
+      <button class="call-header-btn" onclick="startCall()" title="Zəng et">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.29 6.29l.86-.86a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </button>
     </div>
     <div class="messages" id="msgList"></div>
     <div class="typing-indicator" id="typingEl">
@@ -545,6 +637,200 @@ fetch("/chat/unread").then(r => r.json()).then(data => {
     if (badge && cnt > 0) { badge.textContent = cnt; badge.classList.add("visible"); }
   });
 });
+
+// ── WebRTC Call System ────────────────────────────────────────
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ]
+};
+
+let pc           = null;
+let localStream  = null;
+let callState    = null;   // null | 'calling' | 'incoming' | 'active'
+let callPeerId   = null;
+let callPeerName = null;
+let isMuted      = false;
+let callTimer    = null;
+let callSeconds  = 0;
+
+function createPC(pid) {
+  const conn = new RTCPeerConnection(ICE_SERVERS);
+  conn.onicecandidate = e => {
+    if (e.candidate)
+      socket.emit("ice_candidate", { peer_id: pid, candidate: e.candidate });
+  };
+  conn.ontrack = e => {
+    const audio = document.getElementById("remoteAudio");
+    if (audio) audio.srcObject = e.streams[0];
+  };
+  conn.onconnectionstatechange = () => {
+    if (conn.connectionState === "disconnected" || conn.connectionState === "failed")
+      resetCall();
+  };
+  return conn;
+}
+
+function startTimer() {
+  callSeconds = 0;
+  callTimer = setInterval(() => {
+    callSeconds++;
+    const m = String(Math.floor(callSeconds / 60)).padStart(2, "0");
+    const s = String(callSeconds % 60).padStart(2, "0");
+    const el = document.getElementById("callDuration");
+    if (el) el.textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function showActiveBar(name) {
+  document.getElementById("activeCallName").textContent  = name;
+  document.getElementById("callDuration").textContent    = "00:00";
+  document.getElementById("activeCallBar").style.display = "flex";
+  startTimer();
+}
+
+function resetCall() {
+  clearInterval(callTimer); callTimer = null; callSeconds = 0;
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (pc) { pc.close(); pc = null; }
+  isMuted = false;
+  callState = callPeerId = callPeerName = null;
+  document.getElementById("incomingCallOverlay").style.display = "none";
+  document.getElementById("callingOverlay").style.display      = "none";
+  document.getElementById("activeCallBar").style.display       = "none";
+  const mb = document.getElementById("muteBtn");
+  if (mb) mb.classList.remove("muted-bar");
+}
+
+// ── Initiate ──────────────────────────────────────────────────
+async function startCall() {
+  if (callState || !peerId) return;
+  callPeerId = peerId; callPeerName = peerName;
+  callState = "calling";
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch {
+    alert("Mikrofona icazə verilmədi. Brauzer parametrlərini yoxlayın.");
+    callState = null; return;
+  }
+  pc = createPC(callPeerId);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  socket.emit("call_invite", { receiver_id: callPeerId });
+  document.getElementById("callingAvatar").textContent       = callPeerName[0].toUpperCase();
+  document.getElementById("callingName").textContent         = callPeerName;
+  document.getElementById("callingOverlay").style.display    = "flex";
+}
+
+function cancelCall() {
+  socket.emit("call_end", { peer_id: callPeerId });
+  resetCall();
+}
+
+// ── Receive ───────────────────────────────────────────────────
+socket.on("call_invite", data => {
+  if (callState) { socket.emit("call_reject", { caller_id: data.from_id }); return; }
+  callPeerId = data.from_id; callPeerName = data.from_name;
+  callState = "incoming";
+  document.getElementById("incomingAvatar").textContent          = callPeerName[0].toUpperCase();
+  document.getElementById("incomingName").textContent            = callPeerName;
+  document.getElementById("incomingCallOverlay").style.display   = "flex";
+});
+
+async function acceptCall() {
+  document.getElementById("incomingCallOverlay").style.display = "none";
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch {
+    alert("Mikrofona icazə verilmədi.");
+    socket.emit("call_reject", { caller_id: callPeerId });
+    resetCall(); return;
+  }
+  pc = createPC(callPeerId);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  socket.emit("call_accept", { caller_id: callPeerId });
+  callState = "active";
+  showActiveBar(callPeerName);
+}
+
+function rejectCall() {
+  socket.emit("call_reject", { caller_id: callPeerId });
+  resetCall();
+}
+
+function endCall() {
+  socket.emit("call_end", { peer_id: callPeerId });
+  resetCall();
+}
+
+// ── Signaling ─────────────────────────────────────────────────
+socket.on("call_accept", async () => {
+  document.getElementById("callingOverlay").style.display = "none";
+  callState = "active";
+  showActiveBar(callPeerName);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit("webrtc_offer", { receiver_id: callPeerId, sdp: pc.localDescription });
+});
+
+socket.on("call_reject", () => resetCall());
+socket.on("call_end",    () => resetCall());
+
+socket.on("webrtc_offer", async data => {
+  if (!pc) return;
+  await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  socket.emit("webrtc_answer", { caller_id: callPeerId, sdp: pc.localDescription });
+});
+
+socket.on("webrtc_answer", async data => {
+  if (!pc) return;
+  await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+});
+
+socket.on("ice_candidate", async data => {
+  if (!pc || !data.candidate) return;
+  try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+});
+
+// ── Mute ─────────────────────────────────────────────────────
+function toggleMute() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+  const btn = document.getElementById("muteBtn");
+  if (btn) { btn.classList.toggle("muted-bar", isMuted); btn.title = isMuted ? "Səsi aç" : "Səsi kəs"; }
+}
 </script>
+
+<audio id="remoteAudio" autoplay playsinline></audio>
+
+<!-- Incoming call overlay -->
+<div class="call-overlay" id="incomingCallOverlay" style="display:none">
+  <div class="call-ov-avatar" id="incomingAvatar"></div>
+  <div class="call-ov-name" id="incomingName"></div>
+  <div class="call-ov-status">zəng edir...</div>
+  <div class="call-ov-actions">
+    <button class="call-ov-btn accept" onclick="acceptCall()" title="Qəbul et">
+      <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.29 6.29l.86-.86a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    </button>
+    <button class="call-ov-btn reject" onclick="rejectCall()" title="Rədd et">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Outgoing call overlay -->
+<div class="call-overlay" id="callingOverlay" style="display:none">
+  <div class="call-ov-avatar" id="callingAvatar"></div>
+  <div class="call-ov-name" id="callingName"></div>
+  <div class="call-ov-status">zəng gedir...</div>
+  <div class="call-ov-actions">
+    <button class="call-ov-btn cancel" onclick="cancelCall()" title="Ləğv et">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
 </body>
 </html>

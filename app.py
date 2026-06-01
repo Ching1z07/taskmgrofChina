@@ -419,6 +419,65 @@ def on_stop_typing(data):
     if current_user.is_authenticated:
         emit("stop_typing", {"from": current_user.id}, to=f"user_{data.get('receiver_id')}")
 
+# ── WebRTC call signaling ─────────────────────────────────────
+
+@socketio.on("call_invite")
+def on_call_invite(data):
+    if not current_user.is_authenticated:
+        return
+    receiver_id = data.get("receiver_id")
+    if not receiver_id:
+        return
+    emit("call_invite", {
+        "from_id": current_user.id,
+        "from_name": current_user.username
+    }, to=f"user_{receiver_id}")
+
+@socketio.on("call_accept")
+def on_call_accept(data):
+    if not current_user.is_authenticated:
+        return
+    emit("call_accept", {"from_id": current_user.id}, to=f"user_{data.get('caller_id')}")
+
+@socketio.on("call_reject")
+def on_call_reject(data):
+    if not current_user.is_authenticated:
+        return
+    emit("call_reject", {"from_id": current_user.id}, to=f"user_{data.get('caller_id')}")
+
+@socketio.on("call_end")
+def on_call_end(data):
+    if not current_user.is_authenticated:
+        return
+    emit("call_end", {"from_id": current_user.id}, to=f"user_{data.get('peer_id')}")
+
+@socketio.on("webrtc_offer")
+def on_webrtc_offer(data):
+    if not current_user.is_authenticated:
+        return
+    emit("webrtc_offer", {
+        "sdp": data.get("sdp"),
+        "from_id": current_user.id
+    }, to=f"user_{data.get('receiver_id')}")
+
+@socketio.on("webrtc_answer")
+def on_webrtc_answer(data):
+    if not current_user.is_authenticated:
+        return
+    emit("webrtc_answer", {
+        "sdp": data.get("sdp"),
+        "from_id": current_user.id
+    }, to=f"user_{data.get('caller_id')}")
+
+@socketio.on("ice_candidate")
+def on_ice_candidate(data):
+    if not current_user.is_authenticated:
+        return
+    emit("ice_candidate", {
+        "candidate": data.get("candidate"),
+        "from_id": current_user.id
+    }, to=f"user_{data.get('peer_id')}")
+
 # ─────────────────────────────────────────────────────────────
 
 def task_to_dict(task):
