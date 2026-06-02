@@ -3,7 +3,7 @@ services:
     name: taskmgr
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT wsgi:app
     envVars:
       - key: SECRET_KEY
         generateValue: true

@@ -19,7 +19,10 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(DATA_DIR, 'tasks.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    raise RuntimeError("SECRET_KEY environment variable is not set. Add it in your Render dashboard → Environment.")
+app.config['SECRET_KEY'] = _secret
 app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 db.init_app(app)
