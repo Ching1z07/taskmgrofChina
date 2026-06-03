@@ -388,6 +388,70 @@ def on_stop_typing(data):
     if current_user.is_authenticated:
         emit("stop_typing", {"from": current_user.id}, to=f"user_{data.get('receiver_id')}")
 
+@socketio.on("call_invite")
+def on_call_invite(data):
+    if not current_user.is_authenticated:
+        return
+    receiver_id = data.get("receiver_id")
+    emit("call_invite", {
+        "from_id": current_user.id,
+        "from_name": current_user.username
+    }, to=f"user_{receiver_id}")
+
+@socketio.on("call_accept")
+def on_call_accept(data):
+    if not current_user.is_authenticated:
+        return
+    caller_id = data.get("caller_id")
+    emit("call_accept", {
+        "from_id": current_user.id,
+        "from_name": current_user.username
+    }, to=f"user_{caller_id}")
+
+@socketio.on("call_reject")
+def on_call_reject(data):
+    if not current_user.is_authenticated:
+        return
+    caller_id = data.get("caller_id")
+    emit("call_reject", {"from_id": current_user.id}, to=f"user_{caller_id}")
+
+@socketio.on("call_end")
+def on_call_end(data):
+    if not current_user.is_authenticated:
+        return
+    peer_id = data.get("peer_id")
+    emit("call_end", {"from_id": current_user.id}, to=f"user_{peer_id}")
+
+@socketio.on("webrtc_offer")
+def on_webrtc_offer(data):
+    if not current_user.is_authenticated:
+        return
+    receiver_id = data.get("receiver_id")
+    emit("webrtc_offer", {
+        "sdp": data.get("sdp"),
+        "from_id": current_user.id
+    }, to=f"user_{receiver_id}")
+
+@socketio.on("webrtc_answer")
+def on_webrtc_answer(data):
+    if not current_user.is_authenticated:
+        return
+    caller_id = data.get("caller_id")
+    emit("webrtc_answer", {
+        "sdp": data.get("sdp"),
+        "from_id": current_user.id
+    }, to=f"user_{caller_id}")
+
+@socketio.on("ice_candidate")
+def on_ice_candidate(data):
+    if not current_user.is_authenticated:
+        return
+    peer_id = data.get("peer_id")
+    emit("ice_candidate", {
+        "candidate": data.get("candidate"),
+        "from_id": current_user.id
+    }, to=f"user_{peer_id}")
+
 # ─────────────────────────────────────────────────────────────
 
 def task_to_dict(task):
