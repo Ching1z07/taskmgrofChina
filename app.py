@@ -41,7 +41,6 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 with app.app_context():
-    User.__table__.create(db.engine, checkfirst=True)
     db.create_all()
     if not User.query.filter_by(username="Ching1z_7").first():
         admin = User(username="Ching1z_7", is_admin=True)
