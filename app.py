@@ -1,6 +1,8 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.utils import secure_filename
 from models import db, Task, Category, User, Message
 from datetime import datetime, timedelta
@@ -31,10 +33,44 @@ os.makedirs('static/uploads', exist_ok=True)
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
+
+# failed_attempts[username] = {"count": N, "locked_until": datetime | None}
+failed_attempts: dict = {}
+MAX_FAILS    = 5
+LOCK_MINUTES = 15
+
+def record_fail(username: str) -> tuple[int, datetime | None]:
+    rec = failed_attempts.setdefault(username, {"count": 0, "locked_until": None})
+    rec["count"] += 1
+    if rec["count"] >= MAX_FAILS:
+        rec["locked_until"] = datetime.utcnow() + timedelta(minutes=LOCK_MINUTES)
+        rec["count"] = 0
+    return rec["count"], rec["locked_until"]
+
+def is_locked(username: str) -> datetime | None:
+    rec = failed_attempts.get(username)
+    if not rec or not rec["locked_until"]:
+        return None
+    if datetime.utcnow() < rec["locked_until"]:
+        return rec["locked_until"]
+    rec["locked_until"] = None
+    rec["count"] = 0
+    return None
+
 online_users = {}  # {user_id: username}
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({"error": "Çox cəhd etdiniz. Bir az gözləyin."}), 429
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -126,12 +162,27 @@ def register():
     return render_template("auth.html", mode="register")
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute; 50 per hour")
 def login():
     if request.method == "POST":
-        data = request.json
-        user = User.query.filter_by(username=data["username"]).first()
-        if not user or user.deleted or not user.check_password(data["password"]):
-            return jsonify({"error": "Yanlış istifadəçi adı və ya şifrə"}), 401
+        data = request.json or {}
+        username = (data.get("username") or "").strip()[:80]
+        password = (data.get("password") or "")[:128]
+
+        locked_until = is_locked(username)
+        if locked_until:
+            wait = int((locked_until - datetime.utcnow()).total_seconds() // 60) + 1
+            return jsonify({"error": f"Hesab {wait} dəqiqə kilidlənib. Sonra cəhd edin."}), 429
+
+        user = User.query.filter_by(username=username).first()
+        if not user or user.deleted or not user.check_password(password):
+            count, locked_until = record_fail(username)
+            if locked_until:
+                return jsonify({"error": f"Çox yanlış cəhd. Hesab {LOCK_MINUTES} dəqiqə kilidləndi."}), 429
+            remaining = MAX_FAILS - count
+            return jsonify({"error": f"Yanlış istifadəçi adı və ya şifrə. {remaining} cəhd qalıb."}), 401
+
+        failed_attempts.pop(username, None)
         login_user(user)
         return jsonify({"message": "Giriş uğurlu"})
     return render_template("auth.html", mode="login")
