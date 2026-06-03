@@ -34,7 +34,7 @@ db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 limiter = Limiter(
-    get_remote_address,
+    key_func=get_remote_address,
     app=app,
     default_limits=[],
     storage_uri="memory://",
@@ -162,7 +162,7 @@ def register():
     return render_template("auth.html", mode="register")
 
 @app.route("/login", methods=["GET", "POST"])
-@limiter.limit("10 per minute; 50 per hour")
+@limiter.limit("10/minute;50/hour")
 def login():
     if request.method == "POST":
         data = request.json or {}
