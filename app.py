@@ -14,13 +14,16 @@ _db_password = os.getenv("MYSQL_PASSWORD", "")
 _db_host     = os.getenv("MYSQL_HOST", "localhost")
 _db_user     = os.getenv("MYSQL_USER", "root")
 _db_name     = os.getenv("MYSQL_DB", "taskmngr")
-app.config['SQLALCHEMY_DATABASE_URI'] = (
+_db_url = (
     os.getenv("DATABASE_URL") or
     os.getenv("MYSQL_URL") or
     (f"mysql+pymysql://{_db_user}:{_db_password}@{_db_host}/{_db_name}?charset=utf8mb4"
      if _db_password else
      "sqlite:///tasks.db")
 )
+if _db_url.startswith("mysql://"):
+    _db_url = _db_url.replace("mysql://", "mysql+pymysql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sizin-gizli-açar-123')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
