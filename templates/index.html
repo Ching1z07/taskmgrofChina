@@ -1187,5 +1187,146 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
   if (total > 0) document.getElementById('chatDot').style.display = 'block';
 });
 </script>
+
+<!-- ── Global incoming-call overlay ───────────────────────── -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+.gcall-overlay{display:none;position:fixed;inset:0;background:rgba(8,8,14,.92);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+.gcall-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c6aff,#ff6a9e);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:#fff;font-family:'Syne',sans-serif;animation:gcallPulse 2s ease-in-out infinite}
+@keyframes gcallPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,106,255,.5)}70%{box-shadow:0 0 0 20px rgba(124,106,255,0)}}
+.gcall-name{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;color:#e8e8f0}
+.gcall-sub{font-size:.7rem;color:#6060a0;text-transform:uppercase;letter-spacing:.14em}
+.gcall-actions{display:flex;gap:28px;margin-top:8px}
+.gcall-active-bar{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f0f1a;border:1px solid #1a1a2e;border-radius:40px;padding:10px 20px;z-index:9999;align-items:center;gap:14px;font-family:'DM Mono',monospace;font-size:.75rem;color:#e8e8f0}
+.gcall-live-dot{width:8px;height:8px;border-radius:50%;background:#4cdf8a;animation:gcallBlink 1.4s ease-in-out infinite}
+@keyframes gcallBlink{0%,100%{opacity:1}50%{opacity:.2}}
+.gcall-bar-btn{background:none;border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:6px 14px;color:#e8e8f0;cursor:pointer;font-size:.7rem;transition:.15s}
+.gcall-bar-btn:hover{background:rgba(124,106,255,.2)}
+.gcall-bar-btn.end{background:rgba(255,78,106,.15);border-color:rgba(255,78,106,.4);color:#ff4e6a}
+.gcall-btn{width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.gcall-btn:hover{transform:scale(1.08)}
+.gcall-btn.accept{background:#4cdf8a;box-shadow:0 4px 20px rgba(76,223,138,.5)}
+.gcall-btn.reject{background:#ff4e6a;box-shadow:0 4px 20px rgba(255,78,106,.4)}
+.gcall-btn svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+</style>
+
+<div class="gcall-overlay" id="gCallOverlay">
+  <div class="gcall-avatar" id="gCallAvatar"></div>
+  <div class="gcall-name" id="gCallName"></div>
+  <div class="gcall-sub">zəng edir...</div>
+  <div class="gcall-actions">
+    <button class="gcall-btn accept" onclick="gAcceptCall()" title="Qəbul et">
+      <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.29 6.29l.86-.86a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    </button>
+    <button class="gcall-btn reject" onclick="gRejectCall()" title="Rədd et">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="gcall-active-bar" id="gActiveBar">
+  <div class="gcall-live-dot"></div>
+  <span id="gBarName"></span>
+  <span id="gBarDur">00:00</span>
+  <button class="gcall-bar-btn" onclick="gToggleMute()" id="gMuteBtn">Kəs</button>
+  <button class="gcall-bar-btn end" onclick="gEndCall()">Bitir</button>
+</div>
+
+<audio id="gRemoteAudio" autoplay playsinline></audio>
+
+<script>
+(function(){
+  const ICE = { iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}] };
+  const gsock = io();
+
+  let gCallerId=null, gCallerName=null, gPc=null, gStream=null;
+  let gMuted=false, gTimer=null, gSecs=0, gCallState=null;
+
+  function gCreatePC(peerId){
+    const c = new RTCPeerConnection(ICE);
+    c.onicecandidate = e => { if(e.candidate) gsock.emit("ice_candidate",{peer_id:peerId,candidate:e.candidate}); };
+    c.ontrack = e => { const a=document.getElementById("gRemoteAudio"); if(a) a.srcObject=e.streams[0]; };
+    c.onconnectionstatechange = () => { if(c.connectionState==="disconnected"||c.connectionState==="failed") gReset(); };
+    return c;
+  }
+
+  function gStartTimer(name){
+    gSecs=0;
+    document.getElementById("gBarName").textContent=name;
+    document.getElementById("gBarDur").textContent="00:00";
+    document.getElementById("gActiveBar").style.display="flex";
+    gTimer=setInterval(()=>{
+      gSecs++;
+      const m=String(Math.floor(gSecs/60)).padStart(2,"0");
+      const s=String(gSecs%60).padStart(2,"0");
+      document.getElementById("gBarDur").textContent=m+":"+s;
+    },1000);
+  }
+
+  function gReset(){
+    clearInterval(gTimer); gTimer=null; gSecs=0;
+    if(gStream){gStream.getTracks().forEach(t=>t.stop());gStream=null;}
+    if(gPc){gPc.close();gPc=null;}
+    gMuted=false; gCallState=null; gCallerId=null; gCallerName=null;
+    document.getElementById("gCallOverlay").style.display="none";
+    document.getElementById("gActiveBar").style.display="none";
+    document.getElementById("gMuteBtn").textContent="Kəs";
+  }
+
+  // Incoming call
+  gsock.on("call_invite", data => {
+    if(gCallState){ gsock.emit("call_reject",{caller_id:data.from_id}); return; }
+    gCallerId=data.from_id; gCallerName=data.from_name; gCallState="incoming";
+    document.getElementById("gCallAvatar").textContent=gCallerName[0].toUpperCase();
+    document.getElementById("gCallName").textContent=gCallerName;
+    document.getElementById("gCallOverlay").style.display="flex";
+  });
+
+  window.gAcceptCall = async function(){
+    document.getElementById("gCallOverlay").style.display="none";
+    try{ gStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false}); }
+    catch{ alert("Mikrofona icazə verilmədi."); gsock.emit("call_reject",{caller_id:gCallerId}); gReset(); return; }
+    gPc=gCreatePC(gCallerId);
+    gStream.getTracks().forEach(t=>gPc.addTrack(t,gStream));
+    gsock.emit("call_accept",{caller_id:gCallerId});
+    gCallState="active";
+    gStartTimer(gCallerName);
+  };
+
+  window.gRejectCall = function(){
+    gsock.emit("call_reject",{caller_id:gCallerId});
+    gReset();
+  };
+
+  window.gEndCall = function(){
+    gsock.emit("call_end",{peer_id:gCallerId});
+    gReset();
+  };
+
+  window.gToggleMute = function(){
+    if(!gStream) return;
+    gMuted=!gMuted;
+    gStream.getAudioTracks().forEach(t=>t.enabled=!gMuted);
+    document.getElementById("gMuteBtn").textContent=gMuted?"Aç":"Kəs";
+  };
+
+  // WebRTC signaling (callee side)
+  gsock.on("webrtc_offer", async data => {
+    if(!gPc) return;
+    await gPc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer=await gPc.createAnswer();
+    await gPc.setLocalDescription(answer);
+    gsock.emit("webrtc_answer",{caller_id:gCallerId,sdp:gPc.localDescription});
+  });
+
+  gsock.on("ice_candidate", async data => {
+    if(!gPc||!data.candidate) return;
+    try{ await gPc.addIceCandidate(new RTCIceCandidate(data.candidate)); }catch{}
+  });
+
+  gsock.on("call_reject", ()=>gReset());
+  gsock.on("call_end",    ()=>gReset());
+})();
+</script>
 </body>
 </html>
