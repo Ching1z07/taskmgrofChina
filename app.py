@@ -28,8 +28,9 @@ if _db_url.startswith("mysql://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sizin-gizli-açar-123')
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-os.makedirs('static/uploads', exist_ok=True)
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -71,6 +72,10 @@ login_manager.login_view = 'login'
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({"error": "Çox cəhd etdiniz. Bir az gözləyin."}), 429
+
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({"error": "Fayl çox böyükdür. Maksimum 16 MB."}), 413
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -375,8 +380,13 @@ def create_task():
         file = request.files['image']
         if file and file.filename:
             filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file.filename}")
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            image_path = filename
+            if not filename:
+                return jsonify({"error": "Faylın adı düzgün deyil"}), 400
+            try:
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                image_path = filename
+            except Exception as e:
+                return jsonify({"error": f"Şəkil yüklənə bilmədi: {e}"}), 500
 
     task = Task(
         name=name,

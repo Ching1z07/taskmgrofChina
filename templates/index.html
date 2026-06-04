@@ -1056,7 +1056,12 @@ async function createTask() {
   const imageFile = document.getElementById('tImage').files[0];
   if (imageFile) formData.append('image', imageFile);
 
-  await fetch('/tasks', { method: 'POST', body: formData });
+  const res = await fetch('/tasks', { method: 'POST', body: formData });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    toast('❌ ' + (err.error || 'Xəta baş verdi'));
+    return;
+  }
 
   currentFilter = 'all';
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
