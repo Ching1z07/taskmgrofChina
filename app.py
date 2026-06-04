@@ -453,8 +453,32 @@ def delete_category(cid):
 @app.route("/chat")
 @login_required
 def chat():
-    users = User.query.filter(User.id != current_user.id, User.deleted == False).all()
+    users = User.query.filter(User.id != current_user.id, User.deleted == False).all() \
+        if current_user.is_admin else []
     return render_template("chat.html", users=users)
+
+@app.route("/chat/find-user", methods=["POST"])
+@login_required
+@limiter.limit("20/minute")
+def chat_find_user():
+    username = ((request.json or {}).get("username") or "").strip()[:80]
+    if not username:
+        return jsonify({"error": "İstifadəçi adını daxil edin"}), 400
+    user = User.query.filter_by(username=username, deleted=False).first()
+    if not user or user.id == current_user.id:
+        return jsonify({"error": "İstifadəçi tapılmadı"}), 404
+    return jsonify({"id": user.id, "username": user.username})
+
+@app.route("/chat/conversations")
+@login_required
+def chat_conversations():
+    sent = db.session.query(Message.receiver_id).filter_by(sender_id=current_user.id).distinct()
+    recv = db.session.query(Message.sender_id).filter_by(receiver_id=current_user.id).distinct()
+    ids = {r[0] for r in sent} | {r[0] for r in recv}
+    if not ids:
+        return jsonify([])
+    users = User.query.filter(User.id.in_(ids), User.deleted == False).all()
+    return jsonify([{"id": u.id, "username": u.username} for u in users])
 
 @app.route("/chat/history/<int:peer_id>")
 @login_required

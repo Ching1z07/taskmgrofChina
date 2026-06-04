@@ -324,6 +324,33 @@
     .users-list { padding: 4px; }
   }
 
+  /* ── Find-user bar (non-admin) ── */
+  .find-user-bar {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .find-user-row { position: relative; }
+  .find-user-bar input {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--border2); border-radius: 6px;
+    color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 0.78rem; padding: 7px 38px 7px 10px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .find-user-bar input:focus { border-color: var(--accent); }
+  .find-user-btn {
+    position: absolute; right: 2px; top: 2px; bottom: 2px;
+    background: var(--accent); border: none; border-radius: 4px;
+    color: #fff; cursor: pointer; padding: 0 9px;
+    font-size: 0.8rem; transition: opacity 0.15s;
+  }
+  .find-user-btn:hover { opacity: 0.82; }
+  .find-user-err {
+    font-size: 0.65rem; color: #ff6b82;
+    margin-top: 5px; padding: 0 2px; display: none;
+  }
+
   @media (max-width: 400px) {
     .topbar-links .nav-link:first-child { display: none; }
     .user-name { font-size: 0.75rem; }
@@ -434,8 +461,9 @@
 </div>
 
 <div class="layout">
-  <!-- Users list -->
+  <!-- Users / conversations panel -->
   <div class="users-panel">
+    {% if current_user.is_admin %}
     <div class="users-head">İstifadəçilər</div>
     <div class="users-list" id="usersList">
       {% for u in users %}
@@ -452,6 +480,19 @@
       </div>
       {% endfor %}
     </div>
+    {% else %}
+    <div class="users-head">Söhbətlər</div>
+    <div class="find-user-bar">
+      <div class="find-user-row">
+        <input id="findInput" type="text" placeholder="İstifadəçi adı yazın…"
+               autocomplete="off"
+               onkeydown="if(event.key==='Enter') findAndOpenUser()" />
+        <button class="find-user-btn" onclick="findAndOpenUser()">→</button>
+      </div>
+      <div class="find-user-err" id="findErr"></div>
+    </div>
+    <div class="users-list" id="usersList"></div>
+    {% endif %}
   </div>
 
   <!-- Chat -->
@@ -464,8 +505,9 @@
 </div>
 
 <script>
-const ME_ID = {{ current_user.id }};
+const ME_ID   = {{ current_user.id }};
 const ME_NAME = "{{ current_user.username }}";
+const IS_ADMIN = {{ 'true' if current_user.is_admin else 'false' }};
 let peerId = null, peerName = null;
 let typingTimer = null;
 let isTyping = false;
@@ -486,6 +528,10 @@ socket.on("online_list", list => {
 });
 
 socket.on("new_message", msg => {
+  // For non-admins: ensure sender appears in conversation list
+  if (!IS_ADMIN && msg.sender_id !== ME_ID) {
+    ensureConversation(msg.sender_id, msg.sender);
+  }
   if ((msg.sender_id === peerId && msg.sender_id !== ME_ID) ||
       (msg.sender_id === ME_ID && msg.sender_id !== peerId)) {
     appendMsg(msg);
@@ -630,6 +676,51 @@ function escHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\n/g,"<br>");
 }
 
+// ── Non-admin: find user + conversation helpers ───────────────
+async function findAndOpenUser() {
+  const input = document.getElementById('findInput');
+  const errEl = document.getElementById('findErr');
+  const username = (input.value || '').trim();
+  if (!username) return;
+  errEl.style.display = 'none';
+  const res = await fetch('/chat/find-user', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ username })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    errEl.textContent = data.error;
+    errEl.style.display = 'block';
+    return;
+  }
+  input.value = '';
+  ensureConversation(data.id, data.username);
+  openChat(data.id, data.username);
+}
+
+function ensureConversation(uid, uname) {
+  if (!document.getElementById(`ui-${uid}`)) addConversationItem(uid, uname);
+}
+
+function addConversationItem(uid, uname) {
+  const list = document.getElementById('usersList');
+  if (!list) return;
+  const item = document.createElement('div');
+  item.className = 'user-item';
+  item.id = `ui-${uid}`;
+  item.onclick = () => openChat(uid, uname);
+  item.innerHTML = `
+    <div class="user-avatar">${escHtml(uname[0].toUpperCase())}<div class="online-dot" id="dot-${uid}"></div></div>
+    <div class="user-info">
+      <div class="user-name">${escHtml(uname)}</div>
+      <div class="user-status" id="status-${uid}">offline</div>
+    </div>
+    <div class="unread-badge" id="unread-${uid}"></div>
+  `;
+  list.appendChild(item);
+}
+
 // Load unread counts on start
 fetch("/chat/unread").then(r => r.json()).then(data => {
   Object.entries(data).forEach(([uid, cnt]) => {
@@ -637,6 +728,20 @@ fetch("/chat/unread").then(r => r.json()).then(data => {
     if (badge && cnt > 0) { badge.textContent = cnt; badge.classList.add("visible"); }
   });
 });
+
+// Non-admin: load existing conversations on page load
+if (!IS_ADMIN) {
+  fetch('/chat/conversations').then(r => r.json()).then(list => {
+    list.forEach(u => ensureConversation(u.id, u.username));
+    // then apply unread counts
+    fetch("/chat/unread").then(r => r.json()).then(data => {
+      Object.entries(data).forEach(([uid, cnt]) => {
+        const badge = document.getElementById(`unread-${uid}`);
+        if (badge && cnt > 0) { badge.textContent = cnt; badge.classList.add("visible"); }
+      });
+    });
+  });
+}
 
 // ── WebRTC Call System ────────────────────────────────────────
 const ICE_SERVERS = {
