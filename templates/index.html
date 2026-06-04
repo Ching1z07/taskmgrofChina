@@ -1245,7 +1245,7 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
   function gCreatePC(peerId){
     const c = new RTCPeerConnection(ICE);
     c.onicecandidate = e => { if(e.candidate) gsock.emit("ice_candidate",{peer_id:peerId,candidate:e.candidate}); };
-    c.ontrack = e => { const a=document.getElementById("gRemoteAudio"); if(a) a.srcObject=e.streams[0]; };
+    c.ontrack = e => { const a=document.getElementById("gRemoteAudio"); if(a){ a.srcObject=e.streams[0]; a.play().catch(()=>{}); } };
     c.onconnectionstatechange = () => { if(c.connectionState==="disconnected"||c.connectionState==="failed") gReset(); };
     return c;
   }

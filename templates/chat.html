@@ -827,7 +827,7 @@ function createPC(pid) {
   };
   conn.ontrack = e => {
     const audio = document.getElementById("remoteAudio");
-    if (audio) audio.srcObject = e.streams[0];
+    if (audio) { audio.srcObject = e.streams[0]; audio.play().catch(() => {}); }
   };
   conn.onconnectionstatechange = () => {
     if (conn.connectionState === "disconnected" || conn.connectionState === "failed")
