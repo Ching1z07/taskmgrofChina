@@ -751,23 +751,42 @@ const ICE_SERVERS = {
   ]
 };
 
-// Ring tone
+// Shared AudioContext — unlocked on first user gesture (mobile requirement)
+let _sharedAudioCtx = null;
+function _unlockAudio() {
+  if (_sharedAudioCtx) return;
+  try {
+    _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = _sharedAudioCtx.createBuffer(1, 1, 22050);
+    const src = _sharedAudioCtx.createBufferSource();
+    src.buffer = buf; src.connect(_sharedAudioCtx.destination); src.start(0);
+    _sharedAudioCtx.resume().catch(() => {});
+  } catch {}
+}
+['touchstart', 'touchend', 'click', 'keydown'].forEach(ev =>
+  document.addEventListener(ev, _unlockAudio, { passive: true })
+);
+
 let ringCtx = null, ringNodes = [];
 function startRing() {
   try {
-    ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+    ringCtx = _sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
     function beep() {
-      const o = ringCtx.createOscillator(), g = ringCtx.createGain();
-      o.connect(g); g.connect(ringCtx.destination);
-      o.frequency.value = 880; g.gain.value = 0.3;
-      o.start(); o.stop(ringCtx.currentTime + 0.3);
+      try {
+        const o = ringCtx.createOscillator(), g = ringCtx.createGain();
+        o.connect(g); g.connect(ringCtx.destination);
+        o.frequency.value = 880; g.gain.value = 0.3;
+        o.start(); o.stop(ringCtx.currentTime + 0.3);
+      } catch {}
     }
-    beep(); ringNodes._iv = setInterval(beep, 1200);
+    ringCtx.resume().then(() => { beep(); ringNodes._iv = setInterval(beep, 1200); }).catch(() => {});
   } catch {}
 }
 function stopRing() {
   if (ringNodes._iv) clearInterval(ringNodes._iv);
-  ringNodes = []; if (ringCtx) { ringCtx.close(); ringCtx = null; }
+  ringNodes = [];
+  if (ringCtx && ringCtx !== _sharedAudioCtx) { try { ringCtx.close(); } catch {} }
+  ringCtx = null;
 }
 function showNotification(name) {
   if (!("Notification" in window)) return;

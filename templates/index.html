@@ -1273,25 +1273,43 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
     document.getElementById("gMuteBtn").textContent="Kəs";
   }
 
+  // Shared AudioContext — unlocked on first user gesture (mobile requirement)
+  let _gSharedAudioCtx=null;
+  function _gUnlockAudio(){
+    if(_gSharedAudioCtx) return;
+    try{
+      _gSharedAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const buf=_gSharedAudioCtx.createBuffer(1,1,22050);
+      const src=_gSharedAudioCtx.createBufferSource();
+      src.buffer=buf; src.connect(_gSharedAudioCtx.destination); src.start(0);
+      _gSharedAudioCtx.resume().catch(()=>{});
+    }catch{}
+  }
+  ['touchstart','touchend','click','keydown'].forEach(ev=>
+    document.addEventListener(ev,_gUnlockAudio,{passive:true})
+  );
+
   // Ring tone using Web Audio API
   let gRingCtx=null, gRingNodes=[];
   function gStartRing(){
     try{
-      gRingCtx = new (window.AudioContext||window.webkitAudioContext)();
+      gRingCtx=_gSharedAudioCtx||new (window.AudioContext||window.webkitAudioContext)();
       function beep(){
-        const o=gRingCtx.createOscillator(), g=gRingCtx.createGain();
-        o.connect(g); g.connect(gRingCtx.destination);
-        o.frequency.value=880; g.gain.value=0.3;
-        o.start(); o.stop(gRingCtx.currentTime+0.3);
-        gRingNodes.push(o);
+        try{
+          const o=gRingCtx.createOscillator(), g=gRingCtx.createGain();
+          o.connect(g); g.connect(gRingCtx.destination);
+          o.frequency.value=880; g.gain.value=0.3;
+          o.start(); o.stop(gRingCtx.currentTime+0.3);
+        }catch{}
       }
-      beep();
-      gRingNodes._iv = setInterval(beep, 1200);
+      gRingCtx.resume().then(()=>{ beep(); gRingNodes._iv=setInterval(beep,1200); }).catch(()=>{});
     }catch{}
   }
   function gStopRing(){
     if(gRingNodes._iv) clearInterval(gRingNodes._iv);
-    gRingNodes=[]; if(gRingCtx){gRingCtx.close(); gRingCtx=null;}
+    gRingNodes=[];
+    if(gRingCtx&&gRingCtx!==_gSharedAudioCtx){try{gRingCtx.close();}catch{}}
+    gRingCtx=null;
   }
 
   // Browser notification
