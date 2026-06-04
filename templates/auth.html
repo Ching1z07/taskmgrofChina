@@ -338,7 +338,14 @@
     {% if mode == "register" %}
     <div class="field">
       <label class="field-label" for="email">Email</label>
-      <input id="email" type="email" placeholder="example@mail.com" autocomplete="email" />
+      <div style="display:flex;gap:8px">
+        <input id="email" type="email" placeholder="example@mail.com" autocomplete="email" style="flex:1" />
+        <button type="button" id="sendCodeBtn" onclick="sendEmailCode()" style="padding:0 14px;background:rgba(124,106,255,0.15);border:1px solid rgba(124,106,255,0.4);border-radius:10px;color:#7c6aff;font-size:0.75rem;cursor:pointer;white-space:nowrap;transition:.2s" onmouseover="this.style.background='rgba(124,106,255,0.25)'" onmouseout="this.style.background='rgba(124,106,255,0.15)'">Kod göndər</button>
+      </div>
+    </div>
+    <div class="field" id="codeField" style="display:none">
+      <label class="field-label" for="emailCode">Email kodu</label>
+      <input id="emailCode" type="text" placeholder="6 rəqəmli kod" maxlength="6" autocomplete="one-time-code" style="letter-spacing:0.2em;font-size:1.1rem;text-align:center" />
     </div>
     {% endif %}
 
@@ -492,6 +499,40 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
+  let emailVerified = false;
+
+  async function sendEmailCode() {
+    const errEl = document.getElementById('err');
+    const sucEl = document.getElementById('suc');
+    errEl.style.display = 'none'; sucEl.style.display = 'none';
+    const email = (document.getElementById('email').value || '').trim();
+    const username = (document.getElementById('username').value || '').trim();
+    if (!email || !validEmail(email)) {
+      errEl.textContent = '❗ Düzgün email daxil edin'; errEl.style.display = 'block'; return;
+    }
+    if (!username) {
+      errEl.textContent = '❗ Əvvəlcə istifadəçi adını daxil edin'; errEl.style.display = 'block'; return;
+    }
+    const btn = document.getElementById('sendCodeBtn');
+    btn.disabled = true; btn.textContent = 'Göndərilir…';
+    const res = await fetch('/register/send-code', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email, username })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    if (!res.ok) {
+      errEl.textContent = data.error; errEl.style.display = 'block';
+      btn.textContent = 'Kod göndər'; return;
+    }
+    sucEl.textContent = '✓ ' + data.message; sucEl.style.display = 'block';
+    document.getElementById('codeField').style.display = 'block';
+    document.getElementById('emailCode').focus();
+    btn.textContent = 'Yenidən göndər';
+    emailVerified = false;
+  }
+
   async function submit() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
@@ -514,6 +555,13 @@
         errEl.style.display = 'block';
         return;
       }
+      const code = (document.getElementById('emailCode') || {}).value || '';
+      if (!code || code.length < 6) {
+        errEl.textContent = '❗ Email doğrulama kodunu daxil edin';
+        errEl.style.display = 'block';
+        document.getElementById('codeField').style.display = 'block';
+        return;
+      }
     }
     if (MODE !== 'login' && !validPassword(password)) {
       errEl.textContent = '❗ Şifrə tələblərə uyğun deyil';
@@ -528,7 +576,10 @@
     }
 
     const body = { username, password };
-    if (MODE === 'register' && emailEl) body.email = emailEl.value.trim().toLowerCase();
+    if (MODE === 'register' && emailEl) {
+      body.email = emailEl.value.trim().toLowerCase();
+      body.code  = (document.getElementById('emailCode') || {}).value || '';
+    }
 
     const endpoint = MODE === 'forgot' ? '/forgot-password' : `/${MODE}`;
     const res = await fetch(endpoint, {

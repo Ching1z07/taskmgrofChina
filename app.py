@@ -140,24 +140,98 @@ def validate_password(pw):
 def validate_email(email):
     return re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email or '')
 
+# pending_regs[email] = {"code": "123456", "expires": datetime, "username": ..., "password_hash": ...}
+pending_regs: dict = {}
+
+def send_verify_email(to_email, to_name, code):
+    try:
+        resp = http.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": BREVO_KEY, "content-type": "application/json"},
+            json={
+                "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+                "to": [{"email": to_email, "name": to_name}],
+                "subject": "taskmgr — email təsdiqləmə kodu",
+                "htmlContent": f"""
+                <div style="background:#08080e;padding:40px 20px;font-family:'Courier New',monospace">
+                  <div style="max-width:420px;margin:0 auto;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:16px;overflow:hidden">
+                    <div style="height:3px;background:linear-gradient(90deg,#7c6aff,#ff6a9e)"></div>
+                    <div style="padding:36px 32px">
+                      <div style="font-size:1.6rem;font-weight:800;color:#e8e8f0;margin-bottom:6px">task<span style="color:#7c6aff">mgr</span></div>
+                      <div style="font-size:0.7rem;color:#4a4a62;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:28px">email təsdiqləmə</div>
+                      <p style="color:#9090a8;font-size:0.85rem;line-height:1.7;margin-bottom:24px">
+                        Qeydiyyatı tamamlamaq üçün aşağıdakı kodu daxil edin.<br>
+                        Kod <strong style="color:#e8e8f0">10 dəqiqə</strong> ərzində etibarlıdır.
+                      </p>
+                      <div style="background:#08080e;border:1px solid #252538;border-radius:12px;padding:24px;text-align:center;margin-bottom:28px">
+                        <div style="font-size:2.2rem;font-weight:700;letter-spacing:0.3em;color:#7c6aff">{code}</div>
+                      </div>
+                      <p style="color:#4a4a62;font-size:0.72rem">Bu emaili siz göndərməmisinizsə, heç nə etməyin.</p>
+                    </div>
+                  </div>
+                </div>"""
+            }, timeout=8
+        )
+        return resp.status_code < 300
+    except Exception:
+        return False
+
+@app.route("/register/send-code", methods=["POST"])
+@limiter.limit("5/minute;20/hour")
+def register_send_code():
+    data = request.json or {}
+    email = (data.get("email") or "").strip().lower()[:120]
+    username = (data.get("username") or "").strip()[:80]
+    if not validate_email(email):
+        return jsonify({"error": "Düzgün email daxil edin"}), 400
+    if not username:
+        return jsonify({"error": "İstifadəçi adı boş ola bilməz"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Bu email artıq qeydiyyatdan keçib"}), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Bu istifadəçi adı mövcuddur"}), 400
+    code = str(random.randint(100000, 999999))
+    pending_regs[email] = {
+        "code": code,
+        "expires": datetime.utcnow() + timedelta(minutes=10),
+        "username": username,
+    }
+    ok = send_verify_email(email, username, code)
+    if not ok:
+        return jsonify({"error": "Email göndərilə bilmədi. Ünvanı yoxlayın."}), 500
+    masked = email[:2] + "***@" + email.split("@")[-1]
+    return jsonify({"message": f"Kod {masked} ünvanına göndərildi"})
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        data = request.json
-        email = (data.get("email") or "").strip().lower()
-        if not validate_email(email):
-            return jsonify({"error": "Düzgün email daxil edin"}), 400
-        err = validate_password(data.get("password", ""))
+        data = request.json or {}
+        email    = (data.get("email") or "").strip().lower()[:120]
+        password = (data.get("password") or "")[:128]
+        code     = (data.get("code") or "").strip()[:6]
+
+        rec = pending_regs.get(email)
+        if not rec:
+            return jsonify({"error": "Əvvəlcə email doğrulama kodu alın"}), 400
+        if datetime.utcnow() > rec["expires"]:
+            pending_regs.pop(email, None)
+            return jsonify({"error": "Kodun vaxtı bitib. Yenidən göndərin."}), 400
+        if rec["code"] != code:
+            return jsonify({"error": "Yanlış doğrulama kodu"}), 400
+
+        err = validate_password(password)
         if err:
             return jsonify({"error": err}), 400
-        if User.query.filter_by(username=data["username"]).first():
+        if User.query.filter_by(username=rec["username"]).first():
             return jsonify({"error": "Bu istifadəçi adı mövcuddur"}), 400
         if User.query.filter_by(email=email).first():
             return jsonify({"error": "Bu email artıq qeydiyyatdan keçib"}), 400
-        user = User(username=data["username"], email=email)
-        user.set_password(data["password"])
+
+        user = User(username=rec["username"], email=email)
+        user.set_password(password)
         db.session.add(user)
         db.session.commit()
+        pending_regs.pop(email, None)
         return jsonify({"message": "Qeydiyyat uğurlu"}), 201
     return render_template("auth.html", mode="register")
 
