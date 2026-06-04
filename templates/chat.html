@@ -646,6 +646,31 @@ const ICE_SERVERS = {
   ]
 };
 
+// Ring tone
+let ringCtx = null, ringNodes = [];
+function startRing() {
+  try {
+    ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep() {
+      const o = ringCtx.createOscillator(), g = ringCtx.createGain();
+      o.connect(g); g.connect(ringCtx.destination);
+      o.frequency.value = 880; g.gain.value = 0.3;
+      o.start(); o.stop(ringCtx.currentTime + 0.3);
+    }
+    beep(); ringNodes._iv = setInterval(beep, 1200);
+  } catch {}
+}
+function stopRing() {
+  if (ringNodes._iv) clearInterval(ringNodes._iv);
+  ringNodes = []; if (ringCtx) { ringCtx.close(); ringCtx = null; }
+}
+function showNotification(name) {
+  if (!("Notification" in window)) return;
+  const show = () => { try { new Notification("📞 Gələn zəng", { body: name + " zəng edir...", icon: "/static/icon.png" }); } catch {} };
+  if (Notification.permission === "granted") show();
+  else if (Notification.permission !== "denied") Notification.requestPermission().then(p => { if (p === "granted") show(); });
+}
+
 let pc           = null;
 let localStream  = null;
 let callState    = null;   // null | 'calling' | 'incoming' | 'active'
@@ -735,9 +760,12 @@ socket.on("call_invite", data => {
   document.getElementById("incomingAvatar").textContent          = callPeerName[0].toUpperCase();
   document.getElementById("incomingName").textContent            = callPeerName;
   document.getElementById("incomingCallOverlay").style.display   = "flex";
+  startRing();
+  showNotification(callPeerName);
 });
 
 async function acceptCall() {
+  stopRing();
   document.getElementById("incomingCallOverlay").style.display = "none";
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -754,6 +782,7 @@ async function acceptCall() {
 }
 
 function rejectCall() {
+  stopRing();
   socket.emit("call_reject", { caller_id: callPeerId });
   resetCall();
 }

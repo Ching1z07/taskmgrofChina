@@ -1273,6 +1273,35 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
     document.getElementById("gMuteBtn").textContent="Kəs";
   }
 
+  // Ring tone using Web Audio API
+  let gRingCtx=null, gRingNodes=[];
+  function gStartRing(){
+    try{
+      gRingCtx = new (window.AudioContext||window.webkitAudioContext)();
+      function beep(){
+        const o=gRingCtx.createOscillator(), g=gRingCtx.createGain();
+        o.connect(g); g.connect(gRingCtx.destination);
+        o.frequency.value=880; g.gain.value=0.3;
+        o.start(); o.stop(gRingCtx.currentTime+0.3);
+        gRingNodes.push(o);
+      }
+      beep();
+      gRingNodes._iv = setInterval(beep, 1200);
+    }catch{}
+  }
+  function gStopRing(){
+    if(gRingNodes._iv) clearInterval(gRingNodes._iv);
+    gRingNodes=[]; if(gRingCtx){gRingCtx.close(); gRingCtx=null;}
+  }
+
+  // Browser notification
+  function gNotify(name){
+    if(!("Notification" in window)) return;
+    const show=()=>{ try{ new Notification("📞 Gələn zəng", {body: name+" zəng edir...", icon:"/static/icon.png"}); }catch{} };
+    if(Notification.permission==="granted") show();
+    else if(Notification.permission!=="denied") Notification.requestPermission().then(p=>{ if(p==="granted") show(); });
+  }
+
   // Incoming call
   gsock.on("call_invite", data => {
     if(gCallState){ gsock.emit("call_reject",{caller_id:data.from_id}); return; }
@@ -1280,9 +1309,12 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
     document.getElementById("gCallAvatar").textContent=gCallerName[0].toUpperCase();
     document.getElementById("gCallName").textContent=gCallerName;
     document.getElementById("gCallOverlay").style.display="flex";
+    gStartRing();
+    gNotify(gCallerName);
   });
 
   window.gAcceptCall = async function(){
+    gStopRing();
     document.getElementById("gCallOverlay").style.display="none";
     try{ gStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false}); }
     catch{ alert("Mikrofona icazə verilmədi."); gsock.emit("call_reject",{caller_id:gCallerId}); gReset(); return; }
@@ -1294,6 +1326,7 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
   };
 
   window.gRejectCall = function(){
+    gStopRing();
     gsock.emit("call_reject",{caller_id:gCallerId});
     gReset();
   };
