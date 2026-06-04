@@ -315,14 +315,34 @@
     .box-inner { padding: 28px 20px 24px; }
     .logo { font-size: 1.6rem; }
   }
+
+  .lang-bar {
+    display: flex; justify-content: flex-end; gap: 4px;
+    padding: 12px 16px 0;
+  }
+  .lang-btn {
+    background: none; border: 1px solid var(--border2);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 0.68rem; font-family: 'DM Mono', monospace;
+    color: var(--muted); cursor: pointer; transition: .15s;
+    letter-spacing: .05em;
+  }
+  .lang-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(124,106,255,.1); }
+  .lang-btn:hover:not(.active) { border-color: var(--border); color: var(--text); }
 </style>
 </head>
 <body>
 <div class="box">
+  <div class="lang-bar">
+    <button class="lang-btn" id="btnAZ" onclick="setLang('az')">AZ</button>
+    <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+  </div>
   <div class="box-inner">
     <div class="logo-wrap">
       <div class="logo">task<span>mgr</span></div>
-      <div class="logo-sub">
+      <div class="logo-sub" id="logoSub"
+        data-az="{% if mode == 'login' %}xoş gəldiniz{% elif mode == 'register' %}yeni hesab{% else %}şifrəni yenilə{% endif %}"
+        data-en="{% if mode == 'login' %}welcome{% elif mode == 'register' %}new account{% else %}reset password{% endif %}">
         {% if mode == "login" %}xoş gəldiniz{% elif mode == "register" %}yeni hesab{% else %}şifrəni yenilə{% endif %}
       </div>
     </div>
@@ -335,31 +355,38 @@
     <!-- Step 1: Email -->
     <div id="regStep1">
       <div class="field">
-        <label class="field-label" for="email">Email</label>
+        <label class="field-label" for="email" data-az="Email" data-en="Email">Email</label>
         <input id="email" type="email" placeholder="example@gmail.com" autocomplete="email" />
       </div>
       <div class="divider"></div>
-      <button class="btn" type="button" onclick="sendEmailCode()">Kodu göndər</button>
+      <button class="btn" type="button" onclick="sendEmailCode()" id="btnSendCode" data-az="Kodu göndər" data-en="Send Code">Kodu göndər</button>
     </div>
 
     <!-- Step 2: OTP -->
     <div id="regStep2" style="display:none">
       <div class="field">
-        <label class="field-label" for="emailCode">Email kodu</label>
-        <p style="font-size:0.75rem;color:#6060a0;margin:0 0 10px">Kodun <strong id="maskedEmail" style="color:#9090a8"></strong> ünvanına göndərildi</p>
+        <label class="field-label" for="emailCode" data-az="Email kodu" data-en="Email code">Email kodu</label>
+        <p style="font-size:0.75rem;color:#6060a0;margin:0 0 10px">
+          <span data-az="Kodun" data-en="Code sent to">Kodun</span>
+          <strong id="maskedEmail" style="color:#9090a8"></strong>
+          <span id="sentToSuffix" data-az=" ünvanına göndərildi" data-en=""> ünvanına göndərildi</span>
+        </p>
         <input id="emailCode" type="text" placeholder="_ _ _ _ _ _" maxlength="6" autocomplete="one-time-code" style="letter-spacing:0.3em;font-size:1.3rem;text-align:center" oninput="if(this.value.length===6) verifyCode()" />
       </div>
-      <p style="font-size:0.72rem;color:#4a4a62;margin-top:8px">Kod gəlmədi? <a href="#" onclick="goBack();return false" style="color:#7c6aff">Yenidən cəhd et</a></p>
+      <p style="font-size:0.72rem;color:#4a4a62;margin-top:8px">
+        <span data-az="Kod gəlmədi?" data-en="Didn't receive?">Kod gəlmədi?</span>
+        <a href="#" onclick="goBack();return false" style="color:#7c6aff" data-az="Yenidən cəhd et" data-en="Try again">Yenidən cəhd et</a>
+      </p>
     </div>
 
     <!-- Step 3: Username + Password -->
     <div id="regStep3" style="display:none">
       <div class="field">
-        <label class="field-label" for="username">İstifadəçi adı</label>
-        <input id="username" placeholder="ad yazın…" autocomplete="username" />
+        <label class="field-label" for="username" data-az="İstifadəçi adı" data-en="Username">İstifadəçi adı</label>
+        <input id="username" data-az-placeholder="ad yazın…" data-en-placeholder="enter username…" placeholder="ad yazın…" autocomplete="username" />
       </div>
       <div class="field">
-        <label class="field-label" for="password">Şifrə</label>
+        <label class="field-label" for="password" data-az="Şifrə" data-en="Password">Şifrə</label>
         <div class="pw-wrap">
           <input id="password" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRules()" />
           <button class="pw-toggle" type="button" onclick="togglePw('password','eyeIcon')" title="Şifrəni göstər">
@@ -367,13 +394,13 @@
           </button>
         </div>
         <div class="pw-rules" id="pwRules">
-          <div class="rule" id="ruleLen"><span class="rule-dot"></span>Ən az 8 simvol</div>
-          <div class="rule" id="ruleNum"><span class="rule-dot"></span>Ən az 1 rəqəm</div>
-          <div class="rule" id="ruleUpper"><span class="rule-dot"></span>Ən az 1 böyük hərf</div>
+          <div class="rule" id="ruleLen"><span class="rule-dot"></span><span data-az="Ən az 8 simvol" data-en="At least 8 characters">Ən az 8 simvol</span></div>
+          <div class="rule" id="ruleNum"><span class="rule-dot"></span><span data-az="Ən az 1 rəqəm" data-en="At least 1 number">Ən az 1 rəqəm</span></div>
+          <div class="rule" id="ruleUpper"><span class="rule-dot"></span><span data-az="Ən az 1 böyük hərf" data-en="At least 1 uppercase">Ən az 1 böyük hərf</span></div>
         </div>
       </div>
       <div class="field">
-        <label class="field-label" for="confirm">Şifrəni təsdiqlə</label>
+        <label class="field-label" for="confirm" data-az="Şifrəni təsdiqlə" data-en="Confirm password">Şifrəni təsdiqlə</label>
         <div class="pw-wrap">
           <input id="confirm" type="password" placeholder="••••••••" autocomplete="new-password" />
           <button class="pw-toggle" type="button" onclick="togglePw('confirm','eyeIcon2')" title="Şifrəni göstər">
@@ -382,19 +409,19 @@
         </div>
       </div>
       <div class="divider"></div>
-      <button class="btn" type="button" onclick="submit()">Hesab yarat</button>
+      <button class="btn" type="button" onclick="submit()" data-az="Hesab yarat" data-en="Create Account">Hesab yarat</button>
     </div>
 
     {% else %}
 
     <div class="field">
-      <label class="field-label" for="username">İstifadəçi adı</label>
-      <input id="username" placeholder="ad yazın…" autocomplete="username" />
+      <label class="field-label" for="username" data-az="İstifadəçi adı" data-en="Username">İstifadəçi adı</label>
+      <input id="username" data-az-placeholder="ad yazın…" data-en-placeholder="enter username…" placeholder="ad yazın…" autocomplete="username" />
     </div>
 
     {% if mode != "forgot" %}
     <div class="field">
-      <label class="field-label" for="password">Şifrə</label>
+      <label class="field-label" for="password" data-az="Şifrə" data-en="Password">Şifrə</label>
       <div class="pw-wrap">
         <input id="password" type="password" placeholder="••••••••"
           autocomplete="{% if mode == 'login' %}current-password{% else %}new-password{% endif %}"
@@ -465,17 +492,20 @@
 
     {% if mode == "login" %}
     <div class="divider"></div>
-    <button class="btn" onclick="submit()">Daxil ol</button>
+    <button class="btn" onclick="submit()" data-az="Daxil ol" data-en="Sign In">Daxil ol</button>
     {% endif %}
 
     <div class="switch">
       {% if mode == "login" %}
-        Hesabınız yoxdur? <a href="/register">Qeydiyyat</a><br>
-        <a href="/forgot-password" class="forgot-link">Parolu unutmusunuz?</a>
+        <span data-az="Hesabınız yoxdur?" data-en="Don't have an account?">Hesabınız yoxdur?</span>
+        <a href="/register" data-az="Qeydiyyat" data-en="Register">Qeydiyyat</a><br>
+        <a href="/forgot-password" class="forgot-link" data-az="Parolu unutmusunuz?" data-en="Forgot password?">Parolu unutmusunuz?</a>
       {% elif mode == "register" %}
-        Hesabınız var? <a href="/login">Daxil ol</a>
+        <span data-az="Hesabınız var?" data-en="Already have an account?">Hesabınız var?</span>
+        <a href="/login" data-az="Daxil ol" data-en="Sign In">Daxil ol</a>
       {% else %}
-        Yadınıza düşdü? <a href="/login">Daxil ol</a>
+        <span data-az="Yadınıza düşdü?" data-en="Remember it?">Yadınıza düşdü?</span>
+        <a href="/login" data-az="Daxil ol" data-en="Sign In">Daxil ol</a>
       {% endif %}
     </div>
   </div>
@@ -483,6 +513,23 @@
 
 <script>
   const MODE = "{{ mode }}";
+
+  function setLang(lang) {
+    localStorage.setItem('lang', lang);
+    document.getElementById('btnAZ').classList.toggle('active', lang === 'az');
+    document.getElementById('btnEN').classList.toggle('active', lang === 'en');
+    document.querySelectorAll('[data-az]').forEach(el => {
+      el.textContent = el.getAttribute('data-' + lang);
+    });
+    document.querySelectorAll('[data-az-placeholder]').forEach(el => {
+      el.placeholder = el.getAttribute('data-' + lang + '-placeholder');
+    });
+  }
+
+  (function(){
+    const lang = localStorage.getItem('lang') || 'az';
+    setLang(lang);
+  })();
 
   function checkRules() {
     const val = document.getElementById('password').value;
