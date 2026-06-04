@@ -330,30 +330,71 @@
     <div class="error" id="err"></div>
     <div class="success" id="suc"></div>
 
+    {% if mode == "register" %}
+
+    <!-- Step 1: Email -->
+    <div id="regStep1">
+      <div class="field">
+        <label class="field-label" for="email">Email</label>
+        <input id="email" type="email" placeholder="example@gmail.com" autocomplete="email" />
+      </div>
+      <div class="divider"></div>
+      <button class="btn" type="button" onclick="sendEmailCode()">Kodu göndər</button>
+    </div>
+
+    <!-- Step 2: OTP -->
+    <div id="regStep2" style="display:none">
+      <div class="field">
+        <label class="field-label" for="emailCode">Email kodu</label>
+        <p style="font-size:0.75rem;color:#6060a0;margin:0 0 10px">Kodun <strong id="maskedEmail" style="color:#9090a8"></strong> ünvanına göndərildi</p>
+        <input id="emailCode" type="text" placeholder="_ _ _ _ _ _" maxlength="6" autocomplete="one-time-code" style="letter-spacing:0.3em;font-size:1.3rem;text-align:center" oninput="if(this.value.length===6) verifyCode()" />
+      </div>
+      <p style="font-size:0.72rem;color:#4a4a62;margin-top:8px">Kod gəlmədi? <a href="#" onclick="goBack();return false" style="color:#7c6aff">Yenidən cəhd et</a></p>
+    </div>
+
+    <!-- Step 3: Username + Password -->
+    <div id="regStep3" style="display:none">
+      <div class="field">
+        <label class="field-label" for="username">İstifadəçi adı</label>
+        <input id="username" placeholder="ad yazın…" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="password">Şifrə</label>
+        <div class="pw-wrap">
+          <input id="password" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRules()" />
+          <button class="pw-toggle" type="button" onclick="togglePw('password','eyeIcon')" title="Şifrəni göstər">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="pw-rules" id="pwRules">
+          <div class="rule" id="ruleLen"><span class="rule-dot"></span>Ən az 8 simvol</div>
+          <div class="rule" id="ruleNum"><span class="rule-dot"></span>Ən az 1 rəqəm</div>
+          <div class="rule" id="ruleUpper"><span class="rule-dot"></span>Ən az 1 böyük hərf</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="confirm">Şifrəni təsdiqlə</label>
+        <div class="pw-wrap">
+          <input id="confirm" type="password" placeholder="••••••••" autocomplete="new-password" />
+          <button class="pw-toggle" type="button" onclick="togglePw('confirm','eyeIcon2')" title="Şifrəni göstər">
+            <svg id="eyeIcon2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn" type="button" onclick="submit()">Hesab yarat</button>
+    </div>
+
+    {% else %}
+
     <div class="field">
       <label class="field-label" for="username">İstifadəçi adı</label>
       <input id="username" placeholder="ad yazın…" autocomplete="username" />
     </div>
 
-    {% if mode == "register" %}
-    <div class="field">
-      <label class="field-label" for="email">Email</label>
-      <div style="display:flex;gap:8px">
-        <input id="email" type="email" placeholder="example@mail.com" autocomplete="email" style="flex:1" />
-        <button type="button" id="sendCodeBtn" onclick="sendEmailCode()" style="padding:0 14px;background:rgba(124,106,255,0.15);border:1px solid rgba(124,106,255,0.4);border-radius:10px;color:#7c6aff;font-size:0.75rem;cursor:pointer;white-space:nowrap;transition:.2s" onmouseover="this.style.background='rgba(124,106,255,0.25)'" onmouseout="this.style.background='rgba(124,106,255,0.15)'">Kod göndər</button>
-      </div>
-    </div>
-    <div class="field" id="codeField" style="display:none">
-      <label class="field-label" for="emailCode">Email kodu</label>
-      <input id="emailCode" type="text" placeholder="6 rəqəmli kod" maxlength="6" autocomplete="one-time-code" style="letter-spacing:0.2em;font-size:1.1rem;text-align:center" />
-    </div>
-    {% endif %}
-
     {% if mode != "forgot" %}
     <div class="field">
-      <label class="field-label" for="password">
-        Şifrə
-      </label>
+      <label class="field-label" for="password">Şifrə</label>
       <div class="pw-wrap">
         <input id="password" type="password" placeholder="••••••••"
           autocomplete="{% if mode == 'login' %}current-password{% else %}new-password{% endif %}"
@@ -365,29 +406,9 @@
           </svg>
         </button>
       </div>
-      {% if mode == "register" %}
-      <div class="pw-rules" id="pwRules">
-        <div class="rule" id="ruleLen"><span class="rule-dot"></span>Ən az 8 simvol</div>
-        <div class="rule" id="ruleNum"><span class="rule-dot"></span>Ən az 1 rəqəm</div>
-        <div class="rule" id="ruleUpper"><span class="rule-dot"></span>Ən az 1 böyük hərf</div>
-      </div>
-      {% endif %}
-    </div>
-
-    {% if mode == "register" %}
-    <div class="field">
-      <label class="field-label" for="confirm">Şifrəni təsdiqlə</label>
-      <div class="pw-wrap">
-        <input id="confirm" type="password" placeholder="••••••••" autocomplete="new-password" />
-        <button class="pw-toggle" type="button" onclick="togglePw('confirm','eyeIcon2')" title="Şifrəni göstər">
-          <svg id="eyeIcon2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </button>
-      </div>
     </div>
     {% endif %}
+
     {% endif %}
 
     {# ── Forgot password 2-step ── #}
@@ -442,11 +463,9 @@
     </div>
     {% endif %}
 
-    {% if mode != "forgot" %}
+    {% if mode == "login" %}
     <div class="divider"></div>
-    <button class="btn" onclick="submit()">
-      {% if mode == "login" %}Daxil ol{% else %}Qeydiyyatdan keç{% endif %}
-    </button>
+    <button class="btn" onclick="submit()">Daxil ol</button>
     {% endif %}
 
     <div class="switch">
@@ -499,88 +518,83 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
-  let emailVerified = false;
+  let regEmail = '';
+
+  function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg; e.style.display='block'; }
+  function showSuc(msg){ const e=document.getElementById('suc'); e.textContent=msg; e.style.display='block'; }
+  function clearMsgs(){ document.getElementById('err').style.display='none'; document.getElementById('suc').style.display='none'; }
+
+  function goBack(){
+    clearMsgs();
+    document.getElementById('regStep2').style.display='none';
+    document.getElementById('regStep1').style.display='block';
+  }
 
   async function sendEmailCode() {
-    const errEl = document.getElementById('err');
-    const sucEl = document.getElementById('suc');
-    errEl.style.display = 'none'; sucEl.style.display = 'none';
+    clearMsgs();
     const email = (document.getElementById('email').value || '').trim();
-    const username = (document.getElementById('username').value || '').trim();
-    if (!email || !validEmail(email)) {
-      errEl.textContent = '❗ Düzgün email daxil edin'; errEl.style.display = 'block'; return;
-    }
-    if (!username) {
-      errEl.textContent = '❗ Əvvəlcə istifadəçi adını daxil edin'; errEl.style.display = 'block'; return;
-    }
-    const btn = document.getElementById('sendCodeBtn');
+    if (!email || !validEmail(email)) { showErr('❗ Düzgün email daxil edin'); return; }
+    const btn = document.querySelector('#regStep1 .btn');
     btn.disabled = true; btn.textContent = 'Göndərilir…';
     const res = await fetch('/register/send-code', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ email, username })
+      body: JSON.stringify({ email, username: '_placeholder_' })
     });
     const data = await res.json();
-    btn.disabled = false;
-    if (!res.ok) {
-      errEl.textContent = data.error; errEl.style.display = 'block';
-      btn.textContent = 'Kod göndər'; return;
-    }
-    sucEl.textContent = '✓ ' + data.message; sucEl.style.display = 'block';
-    document.getElementById('codeField').style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Kodu göndər';
+    if (!res.ok) { showErr(data.error); return; }
+    regEmail = email;
+    document.getElementById('maskedEmail').textContent = data.message.replace('Kod ','').replace(' ünvanına göndərildi','');
+    document.getElementById('regStep1').style.display = 'none';
+    document.getElementById('regStep2').style.display = 'block';
     document.getElementById('emailCode').focus();
-    btn.textContent = 'Yenidən göndər';
-    emailVerified = false;
+  }
+
+  async function verifyCode() {
+    clearMsgs();
+    const code = (document.getElementById('emailCode').value || '').trim();
+    if (code.length < 6) return;
+    // Show step 3 directly — server will verify code on final submit
+    document.getElementById('regStep2').style.display = 'none';
+    document.getElementById('regStep3').style.display = 'block';
+    document.getElementById('username').focus();
+    showSuc('✓ Email təsdiqləndi. İstifadəçi adı və şifrə daxil edin.');
   }
 
   async function submit() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
+    clearMsgs();
+    const username = (document.getElementById('username') || {value:''}).value.trim();
+    const password = (document.getElementById('password') || {value:''}).value;
     const confirmEl = document.getElementById('confirm');
-    const emailEl = document.getElementById('email');
-    const errEl = document.getElementById('err');
-    const sucEl = document.getElementById('suc');
-    errEl.style.display = 'none';
-    sucEl.style.display = 'none';
+
+    if (MODE === 'register') {
+      if (!username) { showErr('❗ İstifadəçi adı boş ola bilməz'); return; }
+      if (!password) { showErr('❗ Şifrə boş ola bilməz'); return; }
+      if (!validPassword(password)) {
+        showErr('❗ Şifrə tələblərə uyğun deyil');
+        document.getElementById('pwRules').classList.add('visible');
+        return;
+      }
+      if (confirmEl && password !== confirmEl.value) { showErr('❗ Şifrələr uyğun gəlmir'); return; }
+      const code = (document.getElementById('emailCode') || {value:''}).value.trim();
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: regEmail, username, password, code })
+      });
+      const data = await res.json();
+      if (!res.ok) { showErr(data.error); return; }
+      showSuc('✓ Qeydiyyat uğurlu! Yönləndirilirsiniz…');
+      setTimeout(() => window.location.href = '/login', 1500);
+      return;
+    }
 
     if (!username || !password) {
-      errEl.textContent = '❗ Bütün sahələri doldurun';
-      errEl.style.display = 'block';
-      return;
-    }
-    if (MODE === 'register') {
-      const email = emailEl ? emailEl.value.trim() : '';
-      if (!email || !validEmail(email)) {
-        errEl.textContent = '❗ Düzgün email daxil edin';
-        errEl.style.display = 'block';
-        return;
-      }
-      const code = (document.getElementById('emailCode') || {}).value || '';
-      if (!code || code.length < 6) {
-        errEl.textContent = '❗ Email doğrulama kodunu daxil edin';
-        errEl.style.display = 'block';
-        document.getElementById('codeField').style.display = 'block';
-        return;
-      }
-    }
-    if (MODE !== 'login' && !validPassword(password)) {
-      errEl.textContent = '❗ Şifrə tələblərə uyğun deyil';
-      errEl.style.display = 'block';
-      document.getElementById('pwRules').classList.add('visible');
-      return;
-    }
-    if (MODE !== 'login' && confirmEl && password !== confirmEl.value) {
-      errEl.textContent = '❗ Şifrələr uyğun gəlmir';
-      errEl.style.display = 'block';
-      return;
+      showErr('❗ Bütün sahələri doldurun'); return;
     }
 
     const body = { username, password };
-    if (MODE === 'register' && emailEl) {
-      body.email = emailEl.value.trim().toLowerCase();
-      body.code  = (document.getElementById('emailCode') || {}).value || '';
-    }
-
     const endpoint = MODE === 'forgot' ? '/forgot-password' : `/${MODE}`;
     const res = await fetch(endpoint, {
       method: 'POST',

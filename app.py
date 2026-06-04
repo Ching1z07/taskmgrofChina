@@ -181,22 +181,16 @@ def send_verify_email(to_email, to_name, code):
 def register_send_code():
     data = request.json or {}
     email = (data.get("email") or "").strip().lower()[:120]
-    username = (data.get("username") or "").strip()[:80]
     if not validate_email(email):
         return jsonify({"error": "Düzgün email daxil edin"}), 400
-    if not username:
-        return jsonify({"error": "İstifadəçi adı boş ola bilməz"}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Bu email artıq qeydiyyatdan keçib"}), 400
-    if User.query.filter_by(username=username).first():
-        return jsonify({"error": "Bu istifadəçi adı mövcuddur"}), 400
     code = str(random.randint(100000, 999999))
     pending_regs[email] = {
         "code": code,
         "expires": datetime.utcnow() + timedelta(minutes=10),
-        "username": username,
     }
-    ok = send_verify_email(email, username, code)
+    ok = send_verify_email(email, email.split("@")[0], code)
     if not ok:
         return jsonify({"error": "Email göndərilə bilmədi. Ünvanı yoxlayın."}), 500
     masked = email[:2] + "***@" + email.split("@")[-1]
@@ -222,12 +216,15 @@ def register():
         err = validate_password(password)
         if err:
             return jsonify({"error": err}), 400
-        if User.query.filter_by(username=rec["username"]).first():
+        username = (data.get("username") or "").strip()[:80]
+        if not username:
+            return jsonify({"error": "İstifadəçi adı boş ola bilməz"}), 400
+        if User.query.filter_by(username=username).first():
             return jsonify({"error": "Bu istifadəçi adı mövcuddur"}), 400
         if User.query.filter_by(email=email).first():
             return jsonify({"error": "Bu email artıq qeydiyyatdan keçib"}), 400
 
-        user = User(username=rec["username"], email=email)
+        user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
