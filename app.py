@@ -176,6 +176,22 @@ def send_verify_email(to_email, to_name, code):
     except Exception:
         return False
 
+@app.route("/register/verify-code", methods=["POST"])
+@limiter.limit("10/minute;30/hour")
+def register_verify_code():
+    data = request.json or {}
+    email = (data.get("email") or "").strip().lower()[:120]
+    code  = (data.get("code")  or "").strip()[:6]
+    rec   = pending_regs.get(email)
+    if not rec:
+        return jsonify({"error": "Əvvəlcə email doğrulama kodu alın"}), 400
+    if datetime.utcnow() > rec["expires"]:
+        pending_regs.pop(email, None)
+        return jsonify({"error": "Kodun vaxtı bitib. Yenidən göndərin."}), 400
+    if rec["code"] != code:
+        return jsonify({"error": "Yanlış doğrulama kodu"}), 400
+    return jsonify({"message": "OK"})
+
 @app.route("/register/send-code", methods=["POST"])
 @limiter.limit("5/minute;20/hour")
 def register_send_code():

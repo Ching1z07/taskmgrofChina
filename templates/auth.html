@@ -602,7 +602,21 @@
     clearMsgs();
     const code = (document.getElementById('emailCode').value || '').trim();
     if (code.length < 6) return;
-    // Show step 3 directly — server will verify code on final submit
+    const btn = document.getElementById('emailCode');
+    btn.disabled = true;
+    const res = await fetch('/register/verify-code', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: regEmail, code })
+    });
+    btn.disabled = false;
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('emailCode').value = '';
+      showErr('❗ ' + data.error);
+      document.getElementById('emailCode').focus();
+      return;
+    }
     document.getElementById('regStep2').style.display = 'none';
     document.getElementById('regStep3').style.display = 'block';
     document.getElementById('username').focus();
