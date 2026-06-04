@@ -751,42 +751,57 @@ const ICE_SERVERS = {
   ]
 };
 
-// Shared AudioContext — unlocked on first user gesture (mobile requirement)
-let _sharedAudioCtx = null;
-function _unlockAudio() {
-  if (_sharedAudioCtx) return;
+// ── Audio unlock + ring ───────────────────────────────────────
+let _ac = null;          // shared AudioContext
+let _ringId = null;      // setInterval handle
+
+function _acGet() {
+  if (_ac && _ac.state !== 'closed') return _ac;
+  try { _ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { _ac = null; }
+  return _ac;
+}
+
+// Call from any user gesture so the context is pre-running on mobile
+function _acUnlock() {
+  const ctx = _acGet();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   try {
-    _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const buf = _sharedAudioCtx.createBuffer(1, 1, 22050);
-    const src = _sharedAudioCtx.createBufferSource();
-    src.buffer = buf; src.connect(_sharedAudioCtx.destination); src.start(0);
-    _sharedAudioCtx.resume().catch(() => {});
+    const b = ctx.createBuffer(1, 1, 22050);
+    const s = ctx.createBufferSource();
+    s.buffer = b; s.connect(ctx.destination); s.start(0);
   } catch {}
 }
-['touchstart', 'touchend', 'click', 'keydown'].forEach(ev =>
-  document.addEventListener(ev, _unlockAudio, { passive: true })
+['touchstart', 'touchend', 'click', 'keydown'].forEach(e =>
+  document.addEventListener(e, _acUnlock, { passive: true })
 );
 
-let ringCtx = null, ringNodes = [];
-function startRing() {
+function _beep() {
+  const ctx = _ac;
+  if (!ctx || ctx.state !== 'running') return;
   try {
-    ringCtx = _sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    function beep() {
-      try {
-        const o = ringCtx.createOscillator(), g = ringCtx.createGain();
-        o.connect(g); g.connect(ringCtx.destination);
-        o.frequency.value = 880; g.gain.value = 0.3;
-        o.start(); o.stop(ringCtx.currentTime + 0.3);
-      } catch {}
-    }
-    ringCtx.resume().then(() => { beep(); ringNodes._iv = setInterval(beep, 1200); }).catch(() => {});
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.28;
+    o.start(); o.stop(ctx.currentTime + 0.32);
   } catch {}
 }
+
+function startRing() {
+  if (_ringId) return;
+  const ctx = _acGet();
+  if (!ctx) return;
+  const go = () => {
+    if (!_ac || _ac.state === 'closed') return;
+    if (_ac.state === 'suspended') { _ac.resume().then(_beep).catch(() => {}); }
+    else { _beep(); }
+  };
+  go();
+  _ringId = setInterval(go, 1200);
+}
+
 function stopRing() {
-  if (ringNodes._iv) clearInterval(ringNodes._iv);
-  ringNodes = [];
-  if (ringCtx && ringCtx !== _sharedAudioCtx) { try { ringCtx.close(); } catch {} }
-  ringCtx = null;
+  if (_ringId) { clearInterval(_ringId); _ringId = null; }
 }
 function showNotification(name) {
   if (!("Notification" in window)) return;

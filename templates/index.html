@@ -1273,43 +1273,46 @@ fetch('/chat/unread').then(r => r.json()).then(data => {
     document.getElementById("gMuteBtn").textContent="Kəs";
   }
 
-  // Shared AudioContext — unlocked on first user gesture (mobile requirement)
-  let _gSharedAudioCtx=null;
-  function _gUnlockAudio(){
-    if(_gSharedAudioCtx) return;
+  // ── Audio unlock + ring ──────────────────────────────────────
+  let _gAc=null, _gRingId=null;
+
+  function _gAcGet(){
+    if(_gAc&&_gAc.state!=='closed') return _gAc;
+    try{ _gAc=new (window.AudioContext||window.webkitAudioContext)(); }catch{ _gAc=null; }
+    return _gAc;
+  }
+  function _gAcUnlock(){
+    const ctx=_gAcGet(); if(!ctx) return;
+    if(ctx.state==='suspended') ctx.resume().catch(()=>{});
     try{
-      _gSharedAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      const buf=_gSharedAudioCtx.createBuffer(1,1,22050);
-      const src=_gSharedAudioCtx.createBufferSource();
-      src.buffer=buf; src.connect(_gSharedAudioCtx.destination); src.start(0);
-      _gSharedAudioCtx.resume().catch(()=>{});
+      const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();
+      s.buffer=b; s.connect(ctx.destination); s.start(0);
     }catch{}
   }
-  ['touchstart','touchend','click','keydown'].forEach(ev=>
-    document.addEventListener(ev,_gUnlockAudio,{passive:true})
+  ['touchstart','touchend','click','keydown'].forEach(e=>
+    document.addEventListener(e,_gAcUnlock,{passive:true})
   );
-
-  // Ring tone using Web Audio API
-  let gRingCtx=null, gRingNodes=[];
-  function gStartRing(){
+  function _gBeep(){
+    const ctx=_gAc; if(!ctx||ctx.state!=='running') return;
     try{
-      gRingCtx=_gSharedAudioCtx||new (window.AudioContext||window.webkitAudioContext)();
-      function beep(){
-        try{
-          const o=gRingCtx.createOscillator(), g=gRingCtx.createGain();
-          o.connect(g); g.connect(gRingCtx.destination);
-          o.frequency.value=880; g.gain.value=0.3;
-          o.start(); o.stop(gRingCtx.currentTime+0.3);
-        }catch{}
-      }
-      gRingCtx.resume().then(()=>{ beep(); gRingNodes._iv=setInterval(beep,1200); }).catch(()=>{});
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=880; g.gain.value=0.28;
+      o.start(); o.stop(ctx.currentTime+0.32);
     }catch{}
+  }
+  function gStartRing(){
+    if(_gRingId) return;
+    const ctx=_gAcGet(); if(!ctx) return;
+    const go=()=>{
+      if(!_gAc||_gAc.state==='closed') return;
+      if(_gAc.state==='suspended'){ _gAc.resume().then(_gBeep).catch(()=>{}); }
+      else{ _gBeep(); }
+    };
+    go(); _gRingId=setInterval(go,1200);
   }
   function gStopRing(){
-    if(gRingNodes._iv) clearInterval(gRingNodes._iv);
-    gRingNodes=[];
-    if(gRingCtx&&gRingCtx!==_gSharedAudioCtx){try{gRingCtx.close();}catch{}}
-    gRingCtx=null;
+    if(_gRingId){ clearInterval(_gRingId); _gRingId=null; }
   }
 
   // Browser notification
