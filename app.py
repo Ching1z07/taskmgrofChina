@@ -246,7 +246,7 @@ def forgot_password():
         return jsonify({"error": "Yanlış sorğu"}), 400
     return render_template("auth.html", mode="forgot")
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 @login_required
 def logout():
     logout_user()
