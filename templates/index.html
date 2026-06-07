@@ -18,11 +18,8 @@
     --text: #edeaf5;
     --muted: #8888aa;
     --pending: #f5a623;
-    --progress: #7c6aff;
     --done: #4cdf8a;
     --high: #ff4e6a;
-    --medium: #f5a623;
-    --low: #4cdf8a;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -476,7 +473,7 @@
   }
 
   .task-card[data-status="pending"]::before { background: var(--pending); }
-  .task-card[data-status="in_progress"]::before { background: var(--progress); }
+  .task-card[data-status="in_progress"]::before { background: var(--accent); }
   .task-card[data-status="done"]::before { background: var(--done); opacity: 0.5; }
   .task-card[data-status="done"] { opacity: 0.65; }
 
@@ -513,11 +510,11 @@
   }
 
   .badge-pending  { background: rgba(245,166,35,0.08);  color: var(--pending);  border-color: rgba(245,166,35,0.2);  }
-  .badge-progress { background: rgba(124,106,255,0.08); color: var(--progress); border-color: rgba(124,106,255,0.2); }
-  .badge-done     { background: rgba(76,223,138,0.08);  color: var(--done);     border-color: rgba(76,223,138,0.2);  }
-  .badge-high     { background: rgba(255,78,106,0.08);  color: var(--high);     border-color: rgba(255,78,106,0.2);  }
-  .badge-medium   { background: rgba(245,166,35,0.08);  color: var(--medium);   border-color: rgba(245,166,35,0.2);  }
-  .badge-low      { background: rgba(76,223,138,0.08);  color: var(--low);      border-color: rgba(76,223,138,0.2);  }
+  .badge-progress { background: rgba(124,106,255,0.08); color: var(--accent);  border-color: rgba(124,106,255,0.2); }
+  .badge-done     { background: rgba(76,223,138,0.08);  color: var(--done);    border-color: rgba(76,223,138,0.2);  }
+  .badge-high     { background: rgba(255,78,106,0.08);  color: var(--high);    border-color: rgba(255,78,106,0.2);  }
+  .badge-medium   { background: rgba(245,166,35,0.08);  color: var(--pending); border-color: rgba(245,166,35,0.2);  }
+  .badge-low      { background: rgba(76,223,138,0.08);  color: var(--done);    border-color: rgba(76,223,138,0.2);  }
   .cat-badge { font-size: 0.6rem; padding: 2px 8px; border-radius: 20px; font-weight: 500; border: 1px solid; }
 
   .task-actions { display: flex; gap: 5px; align-items: flex-start; }
@@ -774,7 +771,7 @@
       <div class="stat-label">Gözləyir</div>
     </div>
     <div class="stat">
-      <div class="stat-num" style="color:var(--progress)" id="statProgress">—</div>
+      <div class="stat-num" style="color:var(--accent)" id="statProgress">—</div>
       <div class="stat-label">Davam edir</div>
     </div>
     <div class="stat">

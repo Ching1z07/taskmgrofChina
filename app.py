@@ -98,40 +98,41 @@ BREVO_KEY         = os.getenv("BREVO_API_KEY")
 BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")
 BREVO_SENDER_NAME  = os.getenv("BREVO_SENDER_NAME", "taskmgr")
 
+def _brevo_send(to_email, to_name, subject, html_body):
+    try:
+        resp = http.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": BREVO_KEY, "content-type": "application/json"},
+            json={
+                "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+                "to": [{"email": to_email, "name": to_name}],
+                "subject": subject,
+                "htmlContent": html_body,
+            }, timeout=8
+        )
+        return resp.status_code < 300
+    except Exception:
+        return False
+
 def send_reset_email(to_email, to_name, code):
-    resp = http.post(
-        "https://api.brevo.com/v3/smtp/email",
-        headers={"api-key": BREVO_KEY, "content-type": "application/json"},
-        json={
-            "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
-            "to": [{"email": to_email, "name": to_name}],
-            "subject": "taskmgr — şifrə yeniləmə kodu",
-            "htmlContent": f"""
-            <div style="background:#08080e;padding:40px 20px;font-family:'Courier New',monospace;min-height:100vh">
-              <div style="max-width:420px;margin:0 auto;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:16px;overflow:hidden">
-                <div style="height:3px;background:linear-gradient(90deg,#7c6aff,#ff6a9e)"></div>
-                <div style="padding:36px 32px">
-                  <div style="font-size:1.6rem;font-weight:800;letter-spacing:-0.04em;color:#e8e8f0;margin-bottom:6px">
-                    task<span style="color:#7c6aff">mgr</span>
-                  </div>
-                  <div style="font-size:0.7rem;color:#4a4a62;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:32px">şifrə yeniləmə</div>
-                  <p style="color:#9090a8;font-size:0.82rem;line-height:1.7;margin-bottom:28px">
-                    Şifrənizi yeniləmək üçün aşağıdakı kodu daxil edin.<br>
-                    Kod <strong style="color:#e8e8f0">10 dəqiqə</strong> ərzində etibarlıdır.
-                  </p>
-                  <div style="background:#08080e;border:1px solid #252538;border-radius:12px;padding:24px;text-align:center;margin-bottom:28px">
-                    <div style="font-size:2.4rem;font-weight:800;letter-spacing:0.3em;color:#7c6aff">{code}</div>
-                  </div>
-                  <p style="color:#4a4a62;font-size:0.7rem;line-height:1.6">
-                    Bu emaili siz göndərməmisinizsə, heç nə etməyin — şifrəniz dəyişməyəcək.
-                  </p>
-                </div>
-              </div>
-            </div>
-            """
-        }
-    )
-    return resp.ok
+    return _brevo_send(to_email, to_name, "taskmgr — şifrə yeniləmə kodu", f"""
+<div style="background:#08080e;padding:40px 20px;font-family:'Courier New',monospace">
+  <div style="max-width:420px;margin:0 auto;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:16px;overflow:hidden">
+    <div style="height:3px;background:linear-gradient(90deg,#7c6aff,#ff6a9e)"></div>
+    <div style="padding:36px 32px">
+      <div style="font-size:1.6rem;font-weight:800;color:#e8e8f0;margin-bottom:6px">task<span style="color:#7c6aff">mgr</span></div>
+      <div style="font-size:0.7rem;color:#4a4a62;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:32px">şifrə yeniləmə</div>
+      <p style="color:#9090a8;font-size:0.82rem;line-height:1.7;margin-bottom:28px">
+        Şifrənizi yeniləmək üçün aşağıdakı kodu daxil edin.<br>
+        Kod <strong style="color:#e8e8f0">10 dəqiqə</strong> ərzində etibarlıdır.
+      </p>
+      <div style="background:#08080e;border:1px solid #252538;border-radius:12px;padding:24px;text-align:center;margin-bottom:28px">
+        <div style="font-size:2.4rem;font-weight:800;letter-spacing:0.3em;color:#7c6aff">{code}</div>
+      </div>
+      <p style="color:#4a4a62;font-size:0.7rem;line-height:1.6">Bu emaili siz göndərməmisinizsə, heç nə etməyin — şifrəniz dəyişməyəcək.</p>
+    </div>
+  </div>
+</div>""")
 
 def validate_password(pw):
     if len(pw) < 8:
@@ -145,41 +146,27 @@ def validate_password(pw):
 def validate_email(email):
     return re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email or '')
 
-# pending_regs[email] = {"code": "123456", "expires": datetime, "username": ..., "password_hash": ...}
-pending_regs: dict = {}
+pending_regs: dict = {}  # {email: {"code": str, "expires": datetime}}
 
 def send_verify_email(to_email, to_name, code):
-    try:
-        resp = http.post(
-            "https://api.brevo.com/v3/smtp/email",
-            headers={"api-key": BREVO_KEY, "content-type": "application/json"},
-            json={
-                "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
-                "to": [{"email": to_email, "name": to_name}],
-                "subject": "taskmgr — email təsdiqləmə kodu",
-                "htmlContent": f"""
-                <div style="background:#08080e;padding:40px 20px;font-family:'Courier New',monospace">
-                  <div style="max-width:420px;margin:0 auto;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:16px;overflow:hidden">
-                    <div style="height:3px;background:linear-gradient(90deg,#7c6aff,#ff6a9e)"></div>
-                    <div style="padding:36px 32px">
-                      <div style="font-size:1.6rem;font-weight:800;color:#e8e8f0;margin-bottom:6px">task<span style="color:#7c6aff">mgr</span></div>
-                      <div style="font-size:0.7rem;color:#4a4a62;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:28px">email təsdiqləmə</div>
-                      <p style="color:#9090a8;font-size:0.85rem;line-height:1.7;margin-bottom:24px">
-                        Qeydiyyatı tamamlamaq üçün aşağıdakı kodu daxil edin.<br>
-                        Kod <strong style="color:#e8e8f0">10 dəqiqə</strong> ərzində etibarlıdır.
-                      </p>
-                      <div style="background:#08080e;border:1px solid #252538;border-radius:12px;padding:24px;text-align:center;margin-bottom:28px">
-                        <div style="font-size:2.2rem;font-weight:700;letter-spacing:0.3em;color:#7c6aff">{code}</div>
-                      </div>
-                      <p style="color:#4a4a62;font-size:0.72rem">Bu emaili siz göndərməmisinizsə, heç nə etməyin.</p>
-                    </div>
-                  </div>
-                </div>"""
-            }, timeout=8
-        )
-        return resp.status_code < 300
-    except Exception:
-        return False
+    return _brevo_send(to_email, to_name, "taskmgr — email təsdiqləmə kodu", f"""
+<div style="background:#08080e;padding:40px 20px;font-family:'Courier New',monospace">
+  <div style="max-width:420px;margin:0 auto;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:16px;overflow:hidden">
+    <div style="height:3px;background:linear-gradient(90deg,#7c6aff,#ff6a9e)"></div>
+    <div style="padding:36px 32px">
+      <div style="font-size:1.6rem;font-weight:800;color:#e8e8f0;margin-bottom:6px">task<span style="color:#7c6aff">mgr</span></div>
+      <div style="font-size:0.7rem;color:#4a4a62;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:28px">email təsdiqləmə</div>
+      <p style="color:#9090a8;font-size:0.85rem;line-height:1.7;margin-bottom:24px">
+        Qeydiyyatı tamamlamaq üçün aşağıdakı kodu daxil edin.<br>
+        Kod <strong style="color:#e8e8f0">10 dəqiqə</strong> ərzində etibarlıdır.
+      </p>
+      <div style="background:#08080e;border:1px solid #252538;border-radius:12px;padding:24px;text-align:center;margin-bottom:28px">
+        <div style="font-size:2.2rem;font-weight:700;letter-spacing:0.3em;color:#7c6aff">{code}</div>
+      </div>
+      <p style="color:#4a4a62;font-size:0.72rem">Bu emaili siz göndərməmisinizsə, heç nə etməyin.</p>
+    </div>
+  </div>
+</div>""")
 
 @app.route("/register/verify-code", methods=["POST"])
 @limiter.limit("10/minute;30/hour")
