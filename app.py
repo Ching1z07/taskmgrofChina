@@ -8,6 +8,7 @@ from models import db, Task, Category, User, Message
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os, re, random, requests as http
+import cloudinary, cloudinary.uploader
 
 load_dotenv()
 
@@ -31,6 +32,14 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sizin-gizli-açar-123')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+cloudinary.config(
+    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key    = os.getenv("CLOUDINARY_API_KEY"),
+    api_secret = os.getenv("CLOUDINARY_API_SECRET"),
+    secure     = True
+)
+_cloudinary_ready = bool(os.getenv("CLOUDINARY_CLOUD_NAME"))
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -366,12 +375,20 @@ def create_task():
     if 'image' in request.files:
         file = request.files['image']
         if file and file.filename:
-            filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file.filename}")
-            if not filename:
-                return jsonify({"error": "Faylın adı düzgün deyil"}), 400
             try:
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                image_path = filename
+                if _cloudinary_ready:
+                    result = cloudinary.uploader.upload(
+                        file, folder="taskmgr",
+                        resource_type="image",
+                        transformation=[{"width": 1200, "crop": "limit"}]
+                    )
+                    image_path = result["secure_url"]
+                else:
+                    filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file.filename}")
+                    if not filename:
+                        return jsonify({"error": "Faylın adı düzgün deyil"}), 400
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    image_path = filename
             except Exception as e:
                 return jsonify({"error": f"Şəkil yüklənə bilmədi: {e}"}), 500
 
@@ -621,7 +638,8 @@ def task_to_dict(task):
         "status": task.status,
         "priority": task.priority,
         "category_id": task.category_id,
-        "image_url": f"/uploads/{task.image_path}" if task.image_path else None,
+        "image_url": (task.image_path if task.image_path and task.image_path.startswith("http")
+                      else f"/uploads/{task.image_path}" if task.image_path else None),
         "category": {
             "id": task.category.id,
             "name": task.category.name,
